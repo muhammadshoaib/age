@@ -105,10 +105,7 @@ def graph_to_networkx(conn: ext.connection, graph_name: str) -> nx.DiGraph:
 
         # Check if the age graph exists
         with conn.cursor() as cursor:
-            cursor.execute(sql.SQL("SELECT count(*) FROM ag_catalog.ag_graph WHERE name={graphName}").format(graphName=sql.Literal(graph_name)))
-            if cursor.fetchone()[0] == 0:
-                raise GraphNotFound(graph_name)
-            
+       
             # Get all vertices from the age graph
             cursor.execute("""SELECT * FROM cypher(%s, $$ MATCH (n) RETURN (n) $$) as (v agtype);""", (graph_name,))
             for row in cursor:
@@ -128,3 +125,70 @@ def graph_to_networkx(conn: ext.connection, graph_name: str) -> nx.DiGraph:
         print("Exception:",e)
         return G
 
+
+def dict_to_props(d):
+    """
+    Convert a Python dictionary to a string representation of AGE properties.
+    """
+
+    items = [f"{k}:{repr(v)}" for k, v in d.items()]
+    return "{" + ", ".join(items) + "}"
+
+
+def networkx_to_age(conn: ext.connection, nx_graph: nx.DiGraph, age_graph: str):
+
+    try:
+        """
+        Checks connection with AGE and if not, sets it up.
+        Also checks if graph exists and if not, creates it
+        """
+        age.setUpAge(conn, age_graph)
+
+        with conn.cursor() as cursor:
+
+            # Adding vertices to the AGE graph
+            vertices = []
+            for node, props in nx_graph.nodes(data=True):
+                props["label"] = node
+                props = dict_to_props(props)
+                
+                """
+                Checking if the node label is a string or not.
+                Since only str values are allowed to be labels in AGE, whereas, node labels can be non-str
+                values in Networkx, we have this check.
+                If label name is not a string, we simply load the vertex label as a property. 
+                
+                """
+                if (isinstance(node, str)):
+                    vertices.append(f"(n:{node} {props})")
+                else:
+                    vertices.append(f"(:vertex {props})")
+            
+            #Creating a single cypher query to load all the vertices to AGE graph instead of multiple queries
+            cypher_query = ", ".join(vertices)
+
+            #Check to avoid empty cypher query
+            if cypher_query:
+                cursor.execute(f"SELECT * FROM cypher('{age_graph}', $$ CREATE {cypher_query} $$) as (v agtype);")
+                for row in cursor:
+                    print(row)
+
+            # Add edges
+            for start, end, props in nx_graph.edges(data=True):
+
+                #Converting networkX properties to loadable AGE properties
+                props = dict_to_props(props)
+
+                #Since Edges need to match the vertices, we need a separate cypher query for each edge.
+                cursor.execute(f"SELECT * FROM cypher('{age_graph}', $$  MATCH (a),(b) WHERE a.label= {start} AND b.label = {end}  CREATE (a)-[e:edge {props}]->(b) return e $$) as (e agtype);")
+                for row in cursor:
+                    print(row)
+
+            # Committing the changes
+            conn.commit()
+            print("-> Loaded NetworkX {} into AGE graph '{}'".format(nx_graph, age_graph))
+
+
+    except Exception as e:
+        print(e)
+        conn.rollback()
