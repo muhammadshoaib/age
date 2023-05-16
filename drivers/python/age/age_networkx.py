@@ -8,16 +8,13 @@ import psycopg2
 import networkx as nx
 from psycopg2 import sql
 from typing import Dict, Any, List, Tuple
+from age.models import Vertex, Edge, Path
 
 
 def ageToNetworkx(connection: psycopg2.connect,
                   GRAPH_NAME: str,
                   G: None | nx.DiGraph = None,
-                  node_query: str | None = None,
-                  node_filters: List[Tuple[str, Dict]] | None = None,
-                  edge_query: str | None = None,
-                  edge_filters: List[Tuple[str, Dict]] | None = None,
-                  add_new_node_from_edge_filters: bool = False,
+                  query: str | None = None,
                   ) -> nx.DiGraph:
     """
     This Function Creates a Directed Graph from AGE Graph db. It will load all the nodes and edges it can find from the age db to networkx
@@ -53,20 +50,24 @@ def ageToNetworkx(connection: psycopg2.connect,
         A Networkx Directed Graph
     """
 
+    # Create an empty directed graph
+    if G == None:
+        G = nx.DiGraph()
+
     # Check if the age graph exists
     with connection.cursor() as cursor:
-        query = """
+        qq = """
                     SELECT count(*) 
                     FROM ag_catalog.ag_graph 
                     WHERE name='%s'
                 """ % (GRAPH_NAME)
-        cursor.execute(sql.SQL(query))
+        cursor.execute(sql.SQL(qq))
         if cursor.fetchone()[0] == 0:
             raise GraphNotFound(GRAPH_NAME)
 
     def python_dict_to_cypher_property(property):
         """
-         Converting python dictionary to age cypher property string
+            Converting python dictionary to age cypher property string
         """
         if isinstance(property, dict):
             p = "{"
@@ -77,6 +78,9 @@ def ageToNetworkx(connection: psycopg2.connect,
                     p += ","
                 elif isinstance(y, list):
                     p += python_dict_to_cypher_property(y)
+                    p += ','
+                elif isinstance(y, int):
+                    p += str(y)
                     p += ','
                 else:
                     p += "'"
@@ -101,122 +105,69 @@ def ageToNetworkx(connection: psycopg2.connect,
             p += "]"
         return p
 
-    def is_maintained_filter_structure(filters):
-        """
-            checking if the proper structure followed for given filtering
-        """
-        if filters != None:
-            if not isinstance(filters, list):
-                raise Exception('filters is not a List')
-            for item in filters:
-                if not isinstance(item, tuple) or len(item) != 2:
-                    raise Exception(
-                        'filters elements are not a Tuple of length 2 for element :', item)
-                if not isinstance(item[0], str) or not isinstance(item[1], dict):
-                    raise Exception(
-                        'filters elements have no label or property for element:', item)
+    def addVertex(node):
+        G.add_node(node.properties['id'],
+                   label=node.label,
+                   properties=node.properties)
 
-    def addNodesToNetworkx(query):
-        with connection.cursor() as cursor:
-            try:
-                cursor.execute(query)
-                for row in cursor:
-                    G.add_node(row[0].id,
-                               label=row[0].label,
-                               properties=row[0].properties)
-            except Exception as ex:
-                print(type(ex), ex)
+    def addEdge(edge):
+        G.add_edge(edge.properties['start_id'],
+                   edge.properties['end_id'],
+                   label=edge.label,
+                   properties=edge.properties)
 
-    def addEdgesToNetworkx(query):
-        with connection.cursor() as cursor:
-            try:
-                cursor.execute(query)
-                for row in cursor:
-                    if (add_new_node_from_edge_filters):
-                        G.add_node(row[0][0].id,
-                                   label=row[0][0].label,
-                                   properties=row[0][0].properties)
-                        G.add_node(row[0][2].id,
-                                   label=row[0][2].label,
-                                   properties=row[0][2].properties)
-
-                    if G.has_node(row[0][1].start_id) and G.has_node(row[0][1].end_id):
-                        G.add_edge(row[0][1].start_id,
-                                   row[0][1].end_id,
-                                   label=row[0][1].label,
-                                   properties=row[0][1].properties)
-            except Exception as ex:
-                print(type(ex), ex)
-
-    is_maintained_filter_structure(node_filters)
-    is_maintained_filter_structure(edge_filters)
+    def addPath(path):
+        for x in path:
+            if (type(x) == Path):
+                addPath(x)
+        for x in path:
+            if (type(x) == Vertex):
+                addVertex(x)
+        for x in path:
+            if (type(x) == Edge):
+                addEdge(x)
 
     # Setting up connection to work with Graph
     age.setUpAge(connection, GRAPH_NAME)
 
-    # Create an empty directed graph
-    if G == None:
-        G = nx.DiGraph()
+    if (query == None):
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                SELECT * from cypher('%s', $$
+                    MATCH (n)   
+                    RETURN n
+                $$) as (n agtype);
+                """ % (GRAPH_NAME))
+                for row in cursor:
+                    addVertex(row[0])
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                SELECT * from cypher('%s', $$
+                    MATCH ()-[R]->()
+                    RETURN R
+                $$) as (R agtype);
+                """ % (GRAPH_NAME))
+                for row in cursor:
+                    addEdge(row[0])
 
-    if node_query != None:
-        query = """
-        SELECT * FROM cypher('%s', 
-        $$ %s $$) as (v agtype);
-        """ % (GRAPH_NAME, node_query)
-        addNodesToNetworkx(query)
+        except Exception as ex:
+            print(type(ex), ex)
+    else:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                for row in cursor:
+                    if type(row[0]) == Path:
+                        addPath(row[0])
+                    if type(row[0]) == Vertex:
+                        addVertex(row[0])
+                    if type(row[0]) == Edge:
+                        addEdge(row[0])
+                        print(row[0])
 
-    if node_filters != None:
-        for label, prop in node_filters:
-            if label != '':
-                query = """
-                            SELECT * FROM cypher('%s', 
-                            $$ 
-                                MATCH (n:%s %s) 
-                                RETURN (n) 
-                            $$) as (v agtype);
-                        """ % (GRAPH_NAME, label, python_dict_to_cypher_property(prop))
-            else:
-                query = """
-                        SELECT * FROM cypher('%s', 
-                        $$ 
-                            MATCH (n %s) 
-                            RETURN (n) 
-                        $$) as (v agtype);
-                    """ % (GRAPH_NAME, python_dict_to_cypher_property(prop))
-            addNodesToNetworkx(query)
-
-    if edge_query != None:
-        query = """
-            SELECT * from cypher(
-                '%s', $$ %s$$
-            ) as (v agtype); 
-        """ % (GRAPH_NAME, edge_query)
-        addEdgesToNetworkx(query)
-
-    if edge_filters != None:
-        with connection.cursor() as cursor:
-            for label, prop in edge_filters:
-                if label != '':
-                    query = """
-                            SELECT * from cypher(
-                                '%s', 
-                                $$ 
-                                    MATCH v=(N)-[R:%s %s]-(N2)
-                                    RETURN v
-                                $$
-                            ) as (v agtype); 
-                            """ % (GRAPH_NAME, label, python_dict_to_cypher_property(prop))
-                else:
-                    query = """
-                            SELECT * from cypher(
-                                '%s', 
-                                $$ 
-                                    MATCH v=(N)-[R %s]-(N2)
-                                    RETURN v
-                                $$
-                            ) as (v agtype); 
-                            """ % (GRAPH_NAME, python_dict_to_cypher_property(prop))
-                addEdgesToNetworkx(query)
+        except Exception as ex:
+            print(type(ex), ex)
     return G
 
 
@@ -254,11 +205,9 @@ def networkxToAge(connection: psycopg2.connect,
     # Setting up connection to work with Graph
     age.setUpAge(connection, GRAPH_NAME)
 
-    mapId = {}  # Used to map the user id with Graph id
-
     def python_dict_to_cypher_property(property):
         """
-         Converting python dictionary to age cypher property string
+            Converting python dictionary to age cypher property string
         """
         if isinstance(property, dict):
             p = "{"
@@ -269,6 +218,9 @@ def networkxToAge(connection: psycopg2.connect,
                     p += ","
                 elif isinstance(y, list):
                     p += python_dict_to_cypher_property(y)
+                    p += ','
+                elif isinstance(y, int):
+                    p += str(y)
                     p += ','
                 else:
                     p += "'"
@@ -293,70 +245,81 @@ def networkxToAge(connection: psycopg2.connect,
             p += "]"
         return p
 
-    def set_vertices(id: int | str, label: str, properties: Dict[str, Any]) -> None:
-        """Add a vertices to the graph"""
-        with connection.cursor() as cursor:
-            query = """
-            SELECT * from cypher(
-                '%s', 
-                $$ 
-                    CREATE (v:%s %s) 
-                    RETURN v
-                $$
-            ) as (v agtype); 
-            """ % (GRAPH_NAME, label, python_dict_to_cypher_property(properties))
-            # print(query)
-            try:
+    def addvertex(CREATE_str):
+        query = """
+            SELECT * from cypher('%s',
+                        $$
+                            CREATE %s
+                        $$) as (a agtype);
+            """ % (GRAPH_NAME, CREATE_str)
+        try:
+            with connection.cursor() as cursor:
                 cursor.execute(query)
-                for row in cursor:
-                    mapId[id] = row[0].id
-
-                # When data inserted or updated, You must commit.
                 connection.commit()
-            except Exception as ex:
-                print(type(ex), ex)
-                # if exception occurs, you must rollback all transaction.
-                connection.rollback()
+        except Exception as ex:
+            print(type(ex), ex)
+            connection.rollback()
 
-    def set_edge(id1: int | str, id2: int | str, edge_label: str, edge_properties: Dict[str, Any]) -> None:
-        """Add edge to the graph"""
-        with connection.cursor() as cursor:
-            query = """
-            SELECT * from cypher(
-                '%s', 
-                $$ 
-                    MATCH (a), (b)
-                    WHERE id(a) = %s AND id(b) = %s
-                    CREATE (a)-[r:%s %s]->(b)
-                    RETURN r
-                $$) as (v agtype);
-            """ % (
-                GRAPH_NAME,
-                mapId[id1],
-                mapId[id2],
+    def addEdges(query):
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query)
+                connection.commit()
+        except Exception as ex:
+            print('Exception : ', type(ex), ex)
+            connection.rollback()
+
+    def get_edge_query(
+            start_id: str | int,
+            end_id: str | int,
+            edge_label: str,
+            edge_properties: Dict[str, Any]) -> None:
+        """Get cypher query for vertices"""
+
+        query = """
+            SELECT * from cypher('%s', 
+            $$
+                MATCH (a %s), (b %s)
+                CREATE (a)-[e:%s %s]->(b)
+            $$) as (e agtype);
+        """ % (GRAPH_NAME,
+                python_dict_to_cypher_property({'id': start_id}),
+                python_dict_to_cypher_property({'id': end_id}),
                 edge_label,
-                python_dict_to_cypher_property(edge_properties)
-            )
-            try:
-                cursor.execute(query)
-                connection.commit()
-                for row in cursor:
-                    # print(row[0].id)
-                    pass
-            except Exception as ex:
-                print('Exception : ', type(ex), ex)
-                # if exception occurs, you must rollback all transaction.
-                connection.rollback()
+                python_dict_to_cypher_property(edge_properties))
+        return query
 
+    CREATE_str = ''
+    for i, node in enumerate(G.nodes):
+        if (len(CREATE_str) != 0):
+            CREATE_str += ','
+        CREATE_str += '(v%s:%s %s)' % (node, G.nodes[node]['label'],
+                                       python_dict_to_cypher_property(G.nodes[node]['properties']))
+        if (((i % 500) == 499) or (i == (len(G.nodes)-1))):
+            addvertex(CREATE_str)
+            print(i+1, ' nodes created')
+            CREATE_str = ''
+
+    # Adding pg_index
+    label_set = set()
     for node in G.nodes:
-        set_vertices(id=node,
-                     label=G.nodes[node]['label'],
-                     properties=G.nodes[node]['properties'])
+        label_set.add(G.nodes[node]['label'])
+    for label in label_set:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                CREATE INDEX %s
+                ON %s."%s" USING gin (properties);
+                """ % ('temp_' + 'label', GRAPH_NAME, label))
+                connection.commit()
+        except Exception as ex:
+            print(type(ex), ex)
 
-    for u, v in G.edges:
-        set_edge(id1=u,
-                 id2=v,
-                 edge_label=G.edges[u, v]['label'],
-                 edge_properties=G.edges[u, v]['properties'])
-
-    # print("Successfully Added nodes with id mapped as below\n" , mapId)
+    query = ''
+    for i, e in enumerate(G.edges):
+        query += get_edge_query(e[0], e[1], G.edges[e[0], e[1]]
+                                ['label'], G.edges[e[0], e[1]]['properties'])
+        if ((i % 1000 == 999) or (i == len(G.edges)-1)):
+            addEdges(query)
+            query = ''
+            print('ADDED :', i+1, ' Edges')
