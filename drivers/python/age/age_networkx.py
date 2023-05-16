@@ -28,21 +28,8 @@ def ageToNetworkx(connection: psycopg2.connect,
     GRAPH_NAME - string
         Name of the Graph
 
-    node_query - string
-        A cypher query for filterig node
-
-    node_filters - List[Tuple[str, Dict]] | None
-        A list of Tuple for filters to be applied when adding nodes
-
-    edge_query - string
-        A cypher query for filterig edge
-
-    edge_filters - List[Tuple[str, Dict]] | None
-        A list of Tuple for filters to be applied when adding edges
-
-    add_new_node_from_edge_filters - Boolean
-        True : Add all the nodes found from edge filters
-        False : Add only edges to only previouly added nodes
+    query - string
+        A cypher query 
 
     @Returns
     --------
