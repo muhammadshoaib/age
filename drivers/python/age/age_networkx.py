@@ -323,3 +323,14 @@ def networkxToAge(connection: psycopg2.connect,
             addEdges(query)
             query = ''
             print('ADDED :', i+1, ' Edges')
+
+    # Deleting pg_index
+    for label in label_set:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                DROP INDEX %s.%s;
+                """ % (GRAPH_NAME, 'temp_' + 'label'))
+                connection.commit()
+        except Exception as ex:
+            print(type(ex), ex)
