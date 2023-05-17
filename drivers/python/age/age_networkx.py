@@ -297,7 +297,7 @@ def networkxToAge(connection: psycopg2.connect,
                 cursor.execute("""
                 CREATE INDEX %s
                 ON %s."%s" USING gin (properties);
-                """ % ('temp_' + 'label', GRAPH_NAME, label))
+                """ % ('temp_' + label, GRAPH_NAME, label))
                 connection.commit()
         except Exception as ex:
             print(type(ex), ex)
@@ -317,7 +317,7 @@ def networkxToAge(connection: psycopg2.connect,
             with connection.cursor() as cursor:
                 cursor.execute("""
                 DROP INDEX %s.%s;
-                """ % (GRAPH_NAME, 'temp_' + 'label'))
+                """ % (GRAPH_NAME, 'temp_' + label))
                 connection.commit()
         except Exception as ex:
             print(type(ex), ex)
