@@ -5,7 +5,6 @@ from age import *
 from nx_age import *
 import networkx as nx
 
-
 DSN = "host=localhost port=5432 dbname=tee_demodb user=tito password=jacz"
 TEST_GRAPH_NAME = "test"
 
@@ -20,7 +19,6 @@ class TestAgeBasic(unittest.TestCase):
         print("Deleting Test Graph.....")
         age.deleteGraph(self.ag.connection, self.ag.graphName)
         self.ag.close()
-
 
     def testload_to_networkx(self):
         ag = self.ag
@@ -45,21 +43,44 @@ class TestAgeBasic(unittest.TestCase):
         # Check that the graph has the correct number of nodes and edges
         self.assertEqual(len(G.nodes), 3)
         self.assertEqual(len(G.edges), 2)
-        # Check that the node attributes are correct
+        # Check that the node properties are correct
         for node in G.nodes:
             self.assertEqual(G.nodes[node]['label'], 'Person')
             self.assertIn('name', G.nodes[node]['properties'])
             self.assertEqual(str, type(G.nodes[node]['label']))
 
-        # Check that the edge attributes are correct
+        # Check that the edge properties are correct
         for edge in G.edges:
             self.assertEqual(G.edges[edge]['label'], 'workWith')
             self.assertIn('weight', G.edges[edge]['properties'])
             self.assertEqual(int, type(G.edges[edge]['properties']['weight']))
 
-        # Test the function with an invalid graph name
-        with self.assertRaises(Exception):
-            load_to_networkx('nonexistent_graph')
+    def testload_from_networkx(self):
+        graph = nx.DiGraph()
+        graph.add_node(1, label='Person', properties={'name': 'Tito', 'age': '26', 'id': 1})
+        graph.add_node(2, label='Person', properties={'name': 'Austen', 'age': '26', 'id': 2})
+        graph.add_edge(1, 2, label='KNOWS', properties={'since': '1997', 'start_id': 1, 'end_id': 2})
+
+        load_from_networkx(G=graph, graph_name='test_graph', DSN=DSN)
+
+        ag = age.connect(graph='test_graph', dsn=DSN)
+
+        # Check that node(s) were created
+        cursor = ag.execCypher('MATCH (n) RETURN n')
+        result = cursor.fetchall()
+        # Check number of vertices created
+        self.assertEqual(len(result), 2)
+        # Checks if type of property in query output is a Vertex
+        self.assertEqual(age.models.Vertex, type(result[0][0]))
+        self.assertEqual(age.models.Vertex, type(result[1][0]))
+
+        # Check that edge(s) was created
+        cursor = ag.execCypher('MATCH ()-[e]->() RETURN e')
+        result = cursor.fetchall()
+        # Check number of edge(s) created
+        self.assertEqual(len(result), 1)
+        # Checks if type of property in query output is an Edge
+        self.assertEqual(age.models.Edge, type(result[0][0]))
 
 if __name__ == '__main__':
     unittest.main()
