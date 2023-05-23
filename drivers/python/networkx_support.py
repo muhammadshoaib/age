@@ -5,52 +5,67 @@ DiscordID: safi50
 """
 import psycopg2 
 from psycopg2 import extensions as ext
-from psycopg2 import sql
+# from psycopg2 import sql
 import networkx as nx
 import age
+# from age.age import Age
 from age.models import Vertex, Edge, Path
 from age.exceptions import *
 
 
-
-def cypher_to_networkx(conn: ext.connection, graph_name: str,  query: str) -> nx.DiGraph:
-    """
-    Execute a Cypher query and load the result into a NetworkX DiGraph object.
-
-    Parameters:
-    - conn (ext.connection): A connection object to the AGE database. This should be an open
-                             connection, and it will not be closed by the function.
-    - query (str): A Cypher query to execute on the AGE database. The query should return a
-                   collection of Vertex, Edge, or Path elements that can be loaded into a NetworkX graph.
-
-    Returns:
-    - nx.DiGraph
-
-    Note: The function will commit the transaction on the provided connection before returning,
-          so any changes made in the same transaction outside this function will also be committed.
-
-    Note: If the result of the Cypher query cannot be loaded into a NetworkX graph (for example, if
-          the query returns scalar values or non-graph elements), the function will simply print the
-        output and return an empty graph.
+class NetworkXSupport:
 
     """
-    try: 
-        # Initializing an empty NetworkX Directional graph
-        G = nx.DiGraph() 
-        # Setting up Age Connection
-        age.setUpAge(conn, graph_name)
+        DSN = "host=localhost port=5432 dbname={database_name} user={user_name} password={user_password}"
+    """
 
+    def age_to_networkx(graph_name:str, dsn:str) -> nx.DiGraph():
+        try: 
+            # initializing empty NetworkX DiGraph
+            G = nx.DiGraph()
+            nodes = []
+            edges = []
 
-        # executing the cypher query
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-
+            #connecting with AGE 
+            ag = age.connect(graph=graph_name, dsn=dsn)
+            #Extracting and Loading Vertices to NetworkX DiGraph
+            cursor = ag.execCypher("MATCH (n) RETURN (n)")
             for row in cursor:
+
+                nodes.append((row[0].id, {'label': row[0].label, **row[0].properties}))
+
+            #Adding nodes to NetworkX DiGraph    
+            G.add_nodes_from(nodes)
+
+            # Extracting and Loading Edges to NetworkX Digraph
+            cursor = ag.execCypher("MATCH ()-[e]->() RETURN e")
+            for row in cursor:
+
+                edges.append((row[0].start_id, row[0].end_id, 
+                {'label': row[0].label, "id": row[0].id, 'properties': row[0].properties}))
+
+            #Adding edges to NetworkX DiGraph
+            G.add_edges_from(edges)
+
+            return G            
+
+        except Exception as e:
+            print("Exception:",e)
+
+
+    def cypher_to_networkx(graph_name:str, dsn:str, cypherQuery:str) -> nx.DiGraph():
+        try:
+
+            G = nx.DiGraph()
+            
+            ag = age.connect(graph=graph_name, dsn=dsn)
+
+            cursor = ag.execCypher(cypherQuery)
+            for row in cursor: 
                 if not isinstance(row[0], (Vertex, Edge, Path)):
                     print("Output:", row)
                     return G
                 
-                # Checking if the output is a PATH and extracting the vertices and edges from it
                 ag_element = row[0] if row[0].gtype == age.TP_PATH else row
                 
                 # Loading the nodes and edges into the NetworkX graph
@@ -65,86 +80,29 @@ def cypher_to_networkx(conn: ext.connection, graph_name: str,  query: str) -> nx
                                     label=item.label,
                                     properties=item.properties)
                         
-        conn.commit()
-        return G
+            return G
+        
+        except Exception as e:
+            print(e)
+
+   
     
-    except Exception as e:
-        print("Exception:",e)
-        return G
+    def networkx_to_age(nx_graph:nx.DiGraph(), age_graph:str, dsn:str):
 
+        def dict_to_props(d):
+            """
+            Convert a Python dictionary to a string representation of AGE properties.
+            """
 
-def graph_to_networkx(conn: ext.connection, graph_name: str) -> nx.DiGraph:
-    """
-    Load an AGE graph into a NetworkX DiGraph object.
+            items = [f"{k}:{repr(v)}" for k, v in d.items()]
+            return "{" + ", ".join(items) + "}"
 
-    Parameters:
-    - conn (ext.connection): A connection object to the AGE database. This should be an open
-                             connection, and it will not be closed by the function.
-    - graph_name (str): The name of the AGE graph in the database
+        try:
+            """
+            Checks connection with AGE and if not, sets it up.
+            """
+            ag = age.connect(graph=age_graph, dsn=dsn)
 
-    Returns:
-    - nx.DiGraph: A NetworkX DiGraph object representing the AGE graph. Each node in the DiGraph
-                  has an 'id', 'label', and 'properties' attribute corresponding to the properties
-                  of the AGE node. Each edge has a 'label' and 'properties' attribute corresponding
-                  to the properties of the AGE edge.
-
-    Note: The function will commit the transaction on the provided connection before returning,
-          so any changes made in the same transaction outside this function will also be committed.
-
-    Note: If an exception occurs while loading the graph, the function will print the exception
-          message and return the partially loaded graph. If the graph_name does not exist, the
-          returned graph will be empty.
-        """
-
-    try:
-        # Initializing an empty NetworkX Directional graph
-        G = nx.DiGraph() 
-        # Setting up Age Connection
-        age.setUpAge(conn, graph_name)
-
-
-        # Check if the age graph exists
-        with conn.cursor() as cursor:
-       
-            # Get all vertices from the age graph
-            cursor.execute("""SELECT * FROM cypher(%s, $$ MATCH (n) RETURN (n) $$) as (v agtype);""", (graph_name,))
-            for row in cursor:
-                # Loading the nodes into the NetworkX graph
-                G.add_node(row[0].id , label=row[0].label, properties=row[0].properties)
-
-            # Get all edges from the age graph
-            cursor.execute("""SELECT * FROM cypher(%s, $$ MATCH ()-[r]-() RETURN (r) $$) as (e agtype);""", (graph_name,))
-            for row in cursor:
-                # Loading the edges into the NetworkX graph
-                G.add_edge(row[0].start_id, row[0].end_id, label=row[0].label, properties=row[0].properties)
-
-        conn.commit()
-        return G
-    
-    except Exception as e:
-        print("Exception:",e)
-        return G
-
-
-def dict_to_props(d):
-    """
-    Convert a Python dictionary to a string representation of AGE properties.
-    """
-
-    items = [f"{k}:{repr(v)}" for k, v in d.items()]
-    return "{" + ", ".join(items) + "}"
-
-
-def networkx_to_age(conn: ext.connection, nx_graph: nx.DiGraph, age_graph: str):
-
-    try:
-        """
-        Checks connection with AGE and if not, sets it up.
-        Also checks if graph exists and if not, creates it
-        """
-        age.setUpAge(conn, age_graph)
-
-        with conn.cursor() as cursor:
 
             # Adding vertices to the AGE graph
             vertices = []
@@ -163,15 +121,19 @@ def networkx_to_age(conn: ext.connection, nx_graph: nx.DiGraph, age_graph: str):
                     vertices.append(f"(n:{node} {props})")
                 else:
                     vertices.append(f"(:vertex {props})")
-            
-            #Creating a single cypher query to load all the vertices to AGE graph instead of multiple queries
-            cypher_query = ", ".join(vertices)
+ 
+            if len(vertices) / 1600 > 1:
+                batches = len(vertices) // 1600  
+                for iter in range(batches):
 
-            #Check to avoid empty cypher query
-            if cypher_query:
-                cursor.execute(f"SELECT * FROM cypher('{age_graph}', $$ CREATE {cypher_query} $$) as (v agtype);")
-                for row in cursor:
-                    print(row)
+                    #Loading Vertices in batches of 1600 to avoid Cypher query size limit
+                    cypher_query = ", ".join(vertices[i] for i in range(iter*1600, (iter+1)*1600))
+
+                #Check to avoid empty cypher query
+                    if cypher_query:
+                        ag.execCypher(f"CREATE {cypher_query} Return 1")
+                    cypher_query = ""
+  
 
             # Add edges
             for start, end, props in nx_graph.edges(data=True):
@@ -180,15 +142,12 @@ def networkx_to_age(conn: ext.connection, nx_graph: nx.DiGraph, age_graph: str):
                 props = dict_to_props(props)
 
                 #Since Edges need to match the vertices, we need a separate cypher query for each edge.
-                cursor.execute(f"SELECT * FROM cypher('{age_graph}', $$  MATCH (a),(b) WHERE a.label= {start} AND b.label = {end}  CREATE (a)-[e:edge {props}]->(b) return e $$) as (e agtype);")
-                for row in cursor:
-                    print(row)
-
+                ag.execCypher(f"MATCH (a),(b) WHERE a.label={start} AND b.label={end} CREATE (a)-[e:edge {props}]->(b) RETURN 2")
+               
             # Committing the changes
-            conn.commit()
+            ag.commit()
             print("-> Loaded NetworkX {} into AGE graph '{}'".format(nx_graph, age_graph))
 
-
-    except Exception as e:
-        print(e)
-        conn.rollback()
+        except Exception as e:
+            print(e)
+            ag.rollback()
