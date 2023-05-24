@@ -242,9 +242,13 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
         d = string_to_agtype(strVal(&ac->val));
         break;
     default:
-        ereport(ERROR,
-                (errmsg_internal("unrecognized node type: %d", nodeTag(&ac->val))));
-        return NULL;
+        if (&ac->isnull) {
+	    is_null = true;
+	} else {
+	    ereport(ERROR,
+		  (errmsg_internal("unrecognized node type: %d", nodeTag(&ac->val))));
+	    return NULL;
+	}
     }
     cancel_parser_errposition_callback(&pcbstate);
 
