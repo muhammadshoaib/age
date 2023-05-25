@@ -241,6 +241,9 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
     case T_String:
         d = string_to_agtype(strVal(&ac->val));
         break;
+    case T_Boolean:
+        d = boolean_to_agtype(boolVal(&ac->val));
+        break;
     default:
         if (&ac->isnull) {
 	    is_null = true;
