@@ -1,142 +1,240 @@
-"""
-Author: Zainab Saad
-GitHub: Zainab-Saad
-"""
-import age, csv, copy
+import age, csv, json
 from typing import Tuple
-# load CSV to AGE
-def get_contents_from_csv(file_path) -> Tuple[list, list]:
-    """
-    Parameters:
-    file: path of the csv file
 
-    Returns:
-    header[], records [[]]
-    """
-    # open file 
+def get_contents_from_csv(file_path) -> Tuple[list, list]:
     file = open(file_path)
-    # use csv.reader object to read the csv file
     csvreader = csv.reader(file)
-    # extract field names
     header = []
     header = next(csvreader)
-    # extract the records
     records = []
     for record in csvreader:
         records.append(record)
     return header, records
 
-def make_map(header: str) -> str:
-    """
-    Parameters:
-    header: names of properties of vertex/edge
-
-    Returns:
-    string --> property_name: property_value(%s)
-    """
+def make_map_csv(header: str) -> str:
     properties = ''
     for each_property in header:
         properties += each_property + ': %s, '
     return properties[0: len(properties)-2]
 
-def load_labels_from_file(ag: age.age.Age, csv_file_path: str, label_name: str) -> None:
-    """"
-    Parameters:
-    connection object: connection to postgresql using age extension
-    file path
-    label name
-    """
-    
-    # get property names, property values from csv
-    header, records = get_contents_from_csv(csv_file_path)
-    # get the properties string to make the vertex/node
-    properties = make_map(header)
-    for record in records:
-        if label_name == '':
-            cursor = ag.execCypher('CREATE (n' + '{' + properties + '}) RETURN n', params=tuple(record))
+
+def make_map_json(d, prop, record) -> None:
+    for k, v in d.items():
+        if isinstance(v, dict):
+            (prop.append(',' + k + ': {') 
+                if prop[-1][-1] == '}' 
+                else prop.append(k + ': {'))
+            make_map_json(v, prop, record)
         else:
-            cursor = ag.execCypher('CREATE (n: ' + label_name + '{' + properties + '}) RETURN n', params=tuple(record))
-    ag.commit()
+            record.append(str(v))
+            (prop.append(',' + k + ': %s,') 
+                if prop[-1][-1] == '}' 
+                else prop.append(k + ': %s,'))
+    if prop[-1].endswith(','):
+        prop[-1] = prop[-1][:-1]
+    prop.append('}')
 
-def load_edges_from_file(ag: age.age.Age, csv_file_path: str, label_name: str) -> None:
-
-    # define an inner function to get the names of all the properties that will be used for matching vertices (in case more than one property is given)
-    def get_property_names() -> Tuple[list, list]:
-        first_vertex_property_names, second_vertex_property_names, edge_property_names = [], [], []
-        v1_index = header.index('start_vertex_type')
-        v2_index = header.index('end_vertex_type')
-        for i, property_name in enumerate(header):
-            if i < v1_index:
-                first_vertex_property_names.append(property_name)
-            elif (i == v1_index or i == v2_index):
-                continue
-            elif (i < v2_index):
-                second_vertex_property_names.append(property_name)
+def load_labels_from_file(ag: age.age.Age, 
+                          file_path: str, label_name: str) -> None:
+    def load_labels_from_csv() -> None:
+        header, records = get_contents_from_csv(file_path)
+        properties = make_map_csv(header)
+        for record in records:
+            if label_name == '':
+                cursor = ag.execCypher('CREATE (n' + '{' + 
+                                       properties + '}) RETURN n',
+                                       params=tuple(record))
             else:
-                edge_property_names.append(property_name)
-        return first_vertex_property_names, second_vertex_property_names, edge_property_names
-            
+                cursor = ag.execCypher('CREATE (n: ' + label_name + '{' + 
+                                       properties + '}) RETURN n', 
+                                       params=tuple(record))
+        ag.commit()
         
-    # inner function to get the values of all properties for both vertices
-    def get_property_values():
-        first_vertex_property_values, second_vertex_property_values, edge_property_values = [], [], []
-        for i in range(0, num_first_vertex):
-            first_vertex_property_values.append(record[i])
-        for i in range(num_first_vertex+1, num_first_vertex+1+num_second_vertex):
-            second_vertex_property_values.append(record[i])
-        for i in range(num_second_vertex+1, num_second_vertex+1+num_edge):
-            edge_property_values.append(record[i])
-        return first_vertex_property_values, second_vertex_property_values, edge_property_values
+    def load_labels_from_json() -> None:
+        with open(file_path, 'r') as openfile:
+            json_object = json.load(openfile)
+        for i in json_object:
+            record, prop = [], ['{']
+            make_map_json(i, prop, record)
+            prop = ''.join(prop)
+            if label_name == '':
+                cursor = ag.execCypher('CREATE (n' + prop + ') RETURN n', 
+                                       params=tuple(record))
+            else:
+                cursor = ag.execCypher('CREATE (n: ' + label_name + prop + 
+                                       ') RETURN n', 
+                                       params=tuple(record))
+        ag.commit()
+        
+        
+    if file_path.endswith('csv'):
+        load_labels_from_csv()
+    elif file_path.endswith('json'):
+        load_labels_from_json()
+    
 
-    # get all the edges
-    header, records = get_contents_from_csv(csv_file_path)
-    # get all the properties for matching each vertex
-    first_vertex_property_names, second_vertex_property_names, edge_property_names = get_property_names()
-    properties_map_1, properties_map_2, properties_map_3 = make_map(first_vertex_property_names), make_map(second_vertex_property_names), make_map(edge_property_names)
-    num_first_vertex, num_second_vertex, num_edge = len(first_vertex_property_names), len(second_vertex_property_names), len(edge_property_names)
-    for record in records:
-        first_vertex_property_values, second_vertex_property_values, edge_property_values = get_property_values()
-        first_vertex_label, second_vertex_label = record[num_first_vertex], record[num_first_vertex+num_second_vertex+1]
-        cursor = ag.execCypher('MATCH (u: ' + first_vertex_label + '{' + properties_map_1 + '}), (v: ' + second_vertex_label  + '{' + properties_map_2 +'}) CREATE (u)-[e: ' + label_name + '{' + properties_map_3 + '}' + ']->(v) RETURN e', 
-                               params=tuple(first_vertex_property_values)+tuple(second_vertex_property_values)+tuple(edge_property_values)) 
-    ag.commit()
+def load_edges_from_file(ag: age.age.Age, 
+                         file_path: str, label_name: str) -> None:
+
+    def load_edges_from_csv()-> None:
+        def get_property_names() -> Tuple[list, list, list]:
+            v1_prop_names, v2_prop_names, e_prop_names = [], [], []
+            v1_index = header.index('start_vertex_type')
+            v2_index = header.index('end_vertex_type')
+            for i, property_name in enumerate(header):
+                if i < v1_index:
+                    v1_prop_names.append(property_name)
+                elif (i == v1_index or i == v2_index):
+                    continue
+                elif (i < v2_index):
+                    v2_prop_names.append(property_name)
+                else:
+                    e_prop_names.append(property_name)
+            return v1_prop_names, v2_prop_names, e_prop_names
+                
+            
+        def get_property_values() -> Tuple[list, list, list]:
+            v1_prop_values, v2_prop_values, e_prop_values = [], [], []
+            for i in range(0, num_v1):
+                v1_prop_values.append(record[i])
+            for i in range(num_v1+1, num_v1+1+num_v2):
+                v2_prop_values.append(record[i])
+            for i in range(num_v2+1, num_v2+1+num_edge):
+                e_prop_values.append(record[i])
+            return v1_prop_values, v2_prop_values, e_prop_values
+
+
+        header, records = get_contents_from_csv(file_path)
+        
+        v1_prop_names, v2_prop_names, e_prop_names = get_property_names()
+        v1_map, v2_map, e_map = (make_map_csv(v1_prop_names), 
+                                make_map_csv(v2_prop_names), 
+                                make_map_csv(e_prop_names))
+        num_v1, num_v2, num_edge = (len(v1_prop_names), 
+                                    len(v2_prop_names), 
+                                    len(e_prop_names))
+        for record in records:
+            (v1_prop_values, 
+            v2_prop_values, 
+            e_prop_values) = get_property_values()
+            v1_label, v2_label = record[num_v1], record[num_v1+num_v2+1]
+            cursor = ag.execCypher('MATCH (u: ' + v1_label + '{' + v1_map + 
+                                   '}), (v: ' + v2_label  + '{' + v2_map +
+                                   '}) CREATE (u)-[e: ' + label_name + 
+                                   '{' + e_map + '}' + ']->(v) RETURN e', 
+                                params=tuple(v1_prop_values)
+                                +tuple(v2_prop_values)
+                                +tuple(e_prop_values)) 
+        ag.commit()
+        
+    def load_edges_from_json()-> None:
+        with open(file_path, 'r') as openfile:
+            json_object = json.load(openfile)
+        for i in json_object:
+            
+            v1_prop_vals, v1_prop = [], ['{']
+            make_map_json(i['start_vertex'], v1_prop, v1_prop_vals)
+            v1_prop = ''.join(v1_prop)
+            v1_label = i['start_vertex_type']
+            v2_prop_vals, v2_prop = [], ['{']
+            make_map_json(i['end_vertex'], v2_prop, v2_prop_vals)
+            v2_prop = ''.join(v2_prop)
+            v2_label = i['end_vertex_type']
+            e_prop_vals, e_prop = [], ['{']
+            make_map_json(i['edge'], e_prop, e_prop_vals)
+            e_prop = ''.join(e_prop)
+            cursor = ag.execCypher('MATCH (u: ' + v1_label + v1_prop + 
+                                   '), (v: ' + v2_label + v2_prop + 
+                                   ') CREATE (u)-[e: ' + label_name + e_prop + 
+                                   ']->(v) RETURN e', 
+                                   params = tuple(v1_prop_vals) 
+                                   + tuple(v2_prop_vals)
+                                   + tuple(e_prop_vals))
+        ag.commit()
+            
+    if file_path.endswith('csv'):
+        load_edges_from_csv()
+    elif file_path.endswith('json'):
+        load_edges_from_json()
+        
+        
+def load_labels_into_file(ag: age.age.Age) -> None:
     
-# load AGE to CSV            
-def load_labels_into_file(ag: age.age.Age,  graph_name: str) -> None:
-    """
-    Paramters:
-    Age class object
-    graph name
-    """
-    cursor = ag.execCypher('MATCH (u) RETURN DISTINCT labels(u)[0]')
-    
-    for row in cursor:
+    def load_labels_into_csv():
         file_path = './age_load/data/' + row[0] + '.csv'
-        cursor_vertices = ag.execCypher('MATCH (u:' + row[0] + ') RETURN u')
-        cursor_fetch = cursor_vertices.fetchall()
         with open(file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(list((cursor_fetch[0][0].properties).keys()))
-            for each_vertex in cursor_fetch:
-                writer = csv.writer(file)
+            writer.writerow(list((f_vertices[0][0].properties).keys()))
+            for each_vertex in f_vertices:
                 writer.writerow(list((each_vertex[0].properties).values()))
         file.close()
-
+        
+    def load_labels_into_json():
+        file_path = './age_load/data/' + row[0] + '.json'
+        json_list = [vertex[0].properties for vertex in f_vertices]
+        json_object = json.dumps(json_list, indent=4)
+        with open(file_path, mode='w') as file:
+            file.write(json_object)
+        file.close()
+        
+    # TODO -- this is surely an overhead
+    cursor = ag.execCypher('MATCH(u) RETURN DISTINCT labels(u)[0]')
+    for row in cursor:
+        vertices = ag.execCypher('MATCH (u:' + row[0] + ') RETURN u')
+        f_vertices = vertices.fetchall()
+        var = any(isinstance(i,dict) for j in f_vertices 
+                  for i in j[0].properties.values())
+        load_labels_into_json() if var else load_labels_into_csv()
     
-def load_edges_into_file(ag: age.age.Age, graph_name: str) -> None:
+def load_edges_into_file(ag: age.age.Age) -> None:
     
     cursor = ag.execCypher('MATCH (u)-[e]->(v) RETURN DISTINCT type(e)')
-
-    for row in cursor:
+    
+    def load_edges_into_csv():
         file_path = './age_load/data/' + row[0] + '.csv'
-        cursor_edges = ag.execCypher('MATCH p = (u)-[e:' + row[0] + ']->(v) RETURN p')
-        cursor_fetch = cursor_edges.fetchall()
         with open(file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
-            header = list(cursor_fetch[0][0][0].properties.keys()) + ['start_vertex_type'] + list(cursor_fetch[0][0][2].properties.keys()) + ['end_vertex_type'] + list(cursor_fetch[0][0][1].properties.keys())
+            header = (list(f_edges[0][0][0].properties.keys()) +
+                      ['start_vertex_type'] +
+                      list(f_edges[0][0][2].properties.keys()) +
+                      ['end_vertex_type'] +
+                      list(f_edges[0][0][1].properties.keys()))
             writer.writerow(header)
-            for each_edge in cursor_fetch:
+            for each_edge in f_edges:
                 writer = csv.writer(file)
-                record =  list(each_edge[0][0].properties.values()) + [each_edge[0][0].label, ] + list(each_edge[0][2].properties.values()) + [each_edge[0][2].label, ] + list(each_edge[0][1].properties.values())
+                record =  (list(each_edge[0][0].properties.values()) + 
+                           [each_edge[0][0].label, ] + 
+                           list(each_edge[0][2].properties.values()) + 
+                           [each_edge[0][2].label, ] + 
+                           list(each_edge[0][1].properties.values()))
                 writer.writerow(record)
         file.close()
+    def load_edges_into_json():
+        file_path = './age_load/data/' + row[0] + '.json'
+        json_list = []
+        for path in f_edges:
+            dict1 = {}
+            dict1['start_vertex'] = path[0][0].properties
+            dict1['start_vertex_type'] = path[0][0].label
+            dict1['end_vertex'] = path[0][2].properties
+            dict1['end_vertex_type'] = path[0][2].label
+            dict1['edge'] = path[0][1].properties
+            # dict1.update(path[0][1].properties)
+            json_list.append(dict1)
+        json_object = json.dumps(json_list, indent=4)
+        with open(file_path, mode='w') as file:
+            file.write(json_object)
+        file.close()
+            
+    for row in cursor:
+        edges = ag.execCypher('MATCH p = (u)-[e:' + row[0] + 
+                              ']->(v) RETURN p')
+        f_edges = edges.fetchall()
+        var = (any(isinstance(i,dict) for j in f_edges 
+                  for i in j[0][1].properties.values()) or 
+               any(isinstance(i,dict) for j in f_edges 
+                  for i in j[0][0].properties.values()) or 
+               any(isinstance(i,dict) for j in f_edges 
+                  for i in j[0][2].properties.values()))
+        load_edges_into_json() if var else load_edges_into_csv()
+        
