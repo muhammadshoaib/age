@@ -624,6 +624,7 @@ static Query *transform_cypher_union(cypher_parsestate *cpstate,
 
     qry->rtable = pstate->p_rtable;
     qry->rteperminfos = pstate->p_rteperminfos;
+    qry->rteperminfos = cpstate->pstate.p_rteperminfos;
     qry->jointree = makeFromExpr(pstate->p_joinlist, NULL);
     qry->hasAggs = pstate->p_hasAggs;
 
@@ -1294,6 +1295,7 @@ static Query *transform_cypher_delete(cypher_parsestate *cpstate,
 
     query->rtable = pstate->p_rtable;
     query->rteperminfos = pstate->p_rteperminfos;
+    query->rteperminfos = cpstate->pstate.p_rteperminfos;
     query->jointree = makeFromExpr(pstate->p_joinlist, NULL);
 
     return query;
@@ -4759,7 +4761,6 @@ transform_create_cypher_edge(cypher_parsestate *cpstate, List **target_list,
     Expr *props;
     Relation label_relation;
     RangeVar *rv;
-    RangeTblEntry *rte;
     RTEPermissionInfo *rte_pi;
     TargetEntry *te;
     char *alias;
@@ -5031,7 +5032,6 @@ transform_create_cypher_new_node(cypher_parsestate *cpstate,
     cypher_target_node *rel = make_ag_node(cypher_target_node);
     Relation label_relation;
     RangeVar *rv;
-    RangeTblEntry *rte;
     RTEPermissionInfo *rte_pi;
     TargetEntry *te;
     Expr *props;
@@ -5082,8 +5082,6 @@ transform_create_cypher_new_node(cypher_parsestate *cpstate,
 
     pnsi = addRangeTableEntryForRelation(&cpstate->pstate, label_relation,
                                         AccessShareLock, NULL, false, false);
-
-    rte = pnsi->p_rte;
     rte_pi = pnsi->p_perminfo;
     rte_pi->requiredPerms = ACL_INSERT;
 
@@ -5808,7 +5806,6 @@ transform_merge_cypher_edge(cypher_parsestate *cpstate, List **target_list,
     cypher_target_node *rel = make_ag_node(cypher_target_node);
     Relation label_relation;
     RangeVar *rv;
-    RangeTblEntry *rte;
     RTEPermissionInfo *rte_pi;
     ParseNamespaceItem *pnsi;
 
@@ -5881,7 +5878,6 @@ transform_merge_cypher_edge(cypher_parsestate *cpstate, List **target_list,
 
     pnsi = addRangeTableEntryForRelation(&cpstate->pstate, label_relation,
                                          AccessShareLock, NULL, false, false);
-    rte = pnsi->p_rte;
     rte_pi = pnsi->p_perminfo;
     rte_pi->requiredPerms = ACL_INSERT;
 
@@ -5909,7 +5905,6 @@ transform_merge_cypher_node(cypher_parsestate *cpstate, List **target_list,
     cypher_target_node *rel = make_ag_node(cypher_target_node);
     Relation label_relation;
     RangeVar *rv;
-    RangeTblEntry *rte;
     RTEPermissionInfo *rte_pi;
     ParseNamespaceItem *pnsi;
 
@@ -5989,7 +5984,6 @@ transform_merge_cypher_node(cypher_parsestate *cpstate, List **target_list,
 
     pnsi = addRangeTableEntryForRelation(&cpstate->pstate, label_relation,
                                          AccessShareLock, NULL, false, false);
-    rte = pnsi->p_rte;
     rte_pi = pnsi->p_perminfo;
     rte_pi->requiredPerms = ACL_INSERT;
 
