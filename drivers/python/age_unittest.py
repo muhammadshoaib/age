@@ -45,6 +45,8 @@ class TestNetworkxToAGE(unittest.TestCase):
         nodes_G, nodes_H = len(g_nodes), len(h_nodes)
         markG, markH = [0]*nodes_G, [0]*nodes_H
 
+        # print(g_nodes[0][0].properties)
+        # return True
         for i in range(0, nodes_G):
             for j in range(0, nodes_H):
                 if markG[i]==0 and markH[j]==0:
@@ -124,16 +126,45 @@ class TestNetworkxToAGE(unittest.TestCase):
 
         # Convert Apache AGE to NetworkX 
         networkxToAge(self.ag1.connection, G, ORIGINAL_GRAPH)
-        # self.ag1.execCypher("CREATE (:l1 {name: 'n1', weight: '5'})")
-        # self.ag1.execCypher("CREATE (:l1 {name: 'n2', weight: '4'})")
-        # self.ag1.execCypher("CREATE (:l1 {name: 'n3', weight: '9'})")
+
+        self.assertTrue(self.compare_age(self.ag1, self.ag2))
+
+    def testAgeToNetowrkX2(self):
+        # Expected Graph
+        # Empty Graph
         
-        # self.ag1.execCypher("""MATCH (a:l1), (b:l1)
-        #                     WHERE a.name = 'n1' AND b.name = 'n2'
-        #                     CREATE (a)-[e:e1 {property:'graph'}]->(b)""")
-        # self.ag1.execCypher("""MATCH (a:l1), (b:l1)
-        #                     WHERE a.name = 'n2' AND b.name = 'n3'
-        #                     CREATE (a)-[e:e2 {property:'node'}]->(b)""")
+        # NetworkX Graph
+        G = nx.DiGraph()
+
+        
+
+        # Convert Apache AGE to NetworkX 
+        networkxToAge(self.ag1.connection, G, ORIGINAL_GRAPH)
+
+        self.assertTrue(self.compare_age(self.ag1, self.ag2))
+
+    def testAgeToNetowrkX3(self):
+        # Expected Graph
+        self.ag2.execCypher("CREATE (:l1 {name: 'n1'})")
+        self.ag2.execCypher("CREATE (:l1 {name: 'n2'})")
+        self.ag2.execCypher("CREATE (:l1 {name: 'n3'})")
+                
+        # NetworkX Graph
+        G = nx.DiGraph()
+
+        G.add_node('1', 
+            label='l1',
+            properties={'name': 'n1'})
+        G.add_node('2', 
+            label='l1', 
+            properties={'name': 'n2' })
+        G.add_node('3', 
+            label='l1', 
+            properties={'name': 'n3'})
+
+        # Convert Apache AGE to NetworkX 
+        networkxToAge(self.ag1.connection, G, ORIGINAL_GRAPH)
+
         self.assertTrue(self.compare_age(self.ag1, self.ag2))
 
 if __name__=="__main__":

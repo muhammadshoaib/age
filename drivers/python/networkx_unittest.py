@@ -111,24 +111,48 @@ class TestAgeToNetworkx(unittest.TestCase):
         H = ageToNetworkx(self.ag.connection, TEST_GRAPH_NAME)
 
 
-        # H = nx.DiGraph()
-
-        # H.add_node('1', 
-        #     label='l1',
-        #     properties={'name' : 'n1',
-        #                 'weight' : '5'})
-        # H.add_node('2', 
-        #     label='l1', 
-        #     properties={'name': 'n2' ,
-        #                 'weight' : '4'})
-        # H.add_node('3', 
-        #     label='l1', 
-        #     properties={'name': 'n3' ,
-        #                 'weight' : '9'})
-        # H.add_edge('1', '2', label='e1', properties={'property' : 'graph'} )
-        # H.add_edge('2', '3', label='e2', properties={'property' : 'node'} )
         self.assertTrue(self.compare_networkX(G, H))
 
+    def testAgeToNetowrkX2(self):
+        # Expected Graph
+        # Empty Graph
+        G = nx.DiGraph()
+        
+
+        # AGE Graph
+
+
+        # Convert Apache AGE to NetworkX 
+        H = ageToNetworkx(self.ag.connection, TEST_GRAPH_NAME)
+
+        self.assertTrue(self.compare_networkX(G, H))
+
+    def testAgeToNetowrkX3(self):
+        # Expected Graph
+        G = nx.DiGraph()
+
+        G.add_node('1', 
+            label='l1',
+            properties={'name' : 'n1'})
+        G.add_node('2', 
+            label='l1', 
+            properties={'name': 'n2'})
+        G.add_node('3', 
+            label='l1', 
+            properties={'name': 'n3'})
+        
+
+        # AGE Graph
+        self.ag.execCypher("CREATE (:l1 {name: 'n1'})")
+        self.ag.execCypher("CREATE (:l1 {name: 'n2'})")
+        self.ag.execCypher("CREATE (:l1 {name: 'n3'})")
+        
+
+        # Convert Apache AGE to NetworkX 
+        H = ageToNetworkx(self.ag.connection, TEST_GRAPH_NAME)
+
+
+        self.assertTrue(self.compare_networkX(G, H))
     
 
 
