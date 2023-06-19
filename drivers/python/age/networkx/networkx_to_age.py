@@ -65,9 +65,22 @@ def networkx_to_age(connection: psycopg2.connect,
         - create_elabel for all edgelabel
     """
     try:
+        node_label_set = set()
+        edge_label_set = set()
+        with connection.cursor() as cursor:
+            cursor.execute("""
+            SELECT name, kind
+            FROM ag_catalog.ag_label;
+            """)
+            for row in cursor:
+                if (row[1] == 'v'):
+                    node_label_set.add(row[0])
+                else:
+                    edge_label_set.add(row[0])
+
         crete_label_statement = ''
         for label in node_label_list:
-            if (label == '_ag_label_vertex'):
+            if label in node_label_set:
                 continue
             crete_label_statement += """SELECT create_vlabel('%s','%s');\n""" % (
                 graphName, label)
@@ -78,7 +91,7 @@ def networkx_to_age(connection: psycopg2.connect,
 
         crete_label_statement = ''
         for label in edge_label_list:
-            if label == '_ag_label_edge':
+            if label in edge_label_set:
                 continue
             crete_label_statement += """SELECT create_elabel('%s','%s');\n""" % (
                 graphName, label)
@@ -165,5 +178,12 @@ def networkx_to_age(connection: psycopg2.connect,
         if (cc > 0):
             addEdge()
             cc = 0
+    except Exception as e:
+        raise Exception(e)
+
+    """delete added __gid__"""
+    try:
+        for u, data in G.nodes(data=True):
+            del data['__gid__']
     except Exception as e:
         raise Exception(e)

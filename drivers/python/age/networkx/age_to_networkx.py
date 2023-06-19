@@ -67,38 +67,38 @@ def age_to_networkx(connection: psycopg2.connect,
     if G == None:
         G = nx.DiGraph()
 
-    # Add id in node where if not exist
-    with connection.cursor() as cursor:
-        cursor.execute("""
-        SELECT * from cypher('%s', $$
-        MATCH (n)
-        WHERE NOT exists(n.__id__)
-        SET n.__id__ = id(n)
-        $$) as (V agtype);
-        """ % (graphName))
-        connection.commit()
+    # # Add id in node where if not exist
+    # with connection.cursor() as cursor:
+    #     cursor.execute("""
+    #     SELECT * from cypher('%s', $$
+    #     MATCH (n)
+    #     WHERE NOT exists(n.__id__)
+    #     SET n.__id__ = id(n)
+    #     $$) as (V agtype);
+    #     """ % (graphName))
+    #     connection.commit()
 
-    # Add __start_id__ if not exist
-    with connection.cursor() as cursor:
-        cursor.execute("""
-        SELECT * from cypher('%s', $$
-        MATCH (a)-[n]->()
-        WHERE NOT exists(n.__start_id__)
-        SET n.__start_id__ = a.__id__
-        $$) as (V agtype);
-        """ % (graphName))
-        connection.commit()
+    # # Add __start_id__ if not exist
+    # with connection.cursor() as cursor:
+    #     cursor.execute("""
+    #     SELECT * from cypher('%s', $$
+    #     MATCH (a)-[n]->()
+    #     WHERE NOT exists(n.__start_id__)
+    #     SET n.__start_id__ = a.__id__
+    #     $$) as (V agtype);
+    #     """ % (graphName))
+    #     connection.commit()
 
-    # Add __end_id__ if not exist
-    with connection.cursor() as cursor:
-        cursor.execute("""
-        SELECT * from cypher('%s', $$
-        MATCH ()-[n]->(b)
-        WHERE NOT exists(n.__end_id__)
-        SET n.__end_id__ = b.__id__
-        $$) as (V agtype);
-        """ % (graphName))
-        connection.commit()
+    # # Add __end_id__ if not exist
+    # with connection.cursor() as cursor:
+    #     cursor.execute("""
+    #     SELECT * from cypher('%s', $$
+    #     MATCH ()-[n]->(b)
+    #     WHERE NOT exists(n.__end_id__)
+    #     SET n.__end_id__ = b.__id__
+    #     $$) as (V agtype);
+    #     """ % (graphName))
+    #     connection.commit()
 
     def python_dict_to_cypher_property(property):
         """Converting python dictionary to age cypher property string"""
@@ -171,32 +171,43 @@ def age_to_networkx(connection: psycopg2.connect,
     # if no query given add all nodes and edges otherwise only execute query
     if (query == None):
         try:
+            node_label_list = []
+            edge_label_list = []
             with connection.cursor() as cursor:
                 cursor.execute("""
-                SELECT * from cypher('%s', $$
-                    MATCH (n)
-                    RETURN n
-                $$) as (n agtype);
-                """ % (graphName))
-                for i, row in enumerate(cursor):
-                    addNodeToNetworkx(row[0])
+                SELECT name, kind
+                FROM ag_catalog.ag_label;
+                """)
+                for row in cursor:
+                    if (row[1] == 'v'):
+                        node_label_list.append(row[0])
+                    else:
+                        edge_label_list.append(row[0])
 
-                    if ((isPrint) and (i % 100 == 0)):
-                        print(
-                            f'Found {len(G.nodes)-initial_node_cnt} nodes and {len(G.edges)-initial_edge_cnt} edges', end='\r')
+            mpId = {}
+            for label in node_label_list:
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                    SELECT * FROM %s."%s";
+                    """ % (graphName, label))
+                    for row in cursor:
+                        if '__id__' in row[1].keys():
+                            mpId[row[0]] = row[1]['__id__']
+                            G.add_node(row[1]['__id__'],
+                                       label=label, properties=row[1])
+                        else:
+                            mpId[row[0]] = row[0]
+                            G.add_node(row[0], label=label, properties=row[1])
 
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                SELECT * from cypher('%s', $$
-                    MATCH ()-[R]->()
-                    RETURN R
-                $$) as (R agtype);
-                """ % (graphName))
-                for i, row in enumerate(cursor):
-                    addEdgeToNetworkx(row[0])
-                    if ((isPrint) and (i % 100 == 0)):
-                        print(
-                            f'Found {len(G.nodes)-initial_node_cnt} nodes and {len(G.edges)-initial_edge_cnt} edges', end='\r')
+            for label in edge_label_list:
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                    SELECT * FROM %s."%s";
+                    """ % (graphName, label))
+                    for row in cursor:
+                        x = mpId[row[1]]
+                        y = mpId[row[2]]
+                        G.add_edge(x, y, label=label, properties=row[3])
 
         except Exception as ex:
             print(type(ex), ex)
@@ -220,7 +231,6 @@ def age_to_networkx(connection: psycopg2.connect,
 
         except Exception as ex:
             print(type(ex), ex)
-
     if (isPrint):
         print(
             f'Found {len(G.nodes)-initial_node_cnt} nodes and {len(G.edges)-initial_edge_cnt} edges', end='\r')
