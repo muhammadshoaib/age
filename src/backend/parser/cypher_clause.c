@@ -3509,7 +3509,7 @@ static A_Expr *filter_vertices_on_label_id(cypher_parsestate *cpstate,
 
     n = makeNode(A_Const);
     n->val.ival.type = T_Integer;
-    n->val.ival.type = label_id;
+    n->val.ival.ival = label_id;
     n->location = -1;
 
     ag_catalog = makeString("ag_catalog");

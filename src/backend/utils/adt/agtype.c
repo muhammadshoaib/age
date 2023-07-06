@@ -2367,7 +2367,7 @@ static agtype_value* agtype_build_map_as_agtype_value(FunctionCallInfo fcinfo)
     nargs = extract_variadic_args(fcinfo, 0, true, &args, &types, &nulls);
 
     if (nargs < 0)
-        PG_RETURN_NULL();
+      PG_RETURN_NULL();
 
     if (nargs % 2 != 0)
     {
@@ -5215,7 +5215,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
             float4 f = DatumGetFloat4(arg);
 
             if (isnan(f) || isinf(f) ||
-                f < PG_INT64_MIN || f > PG_INT64_MAX)
+                f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                 PG_RETURN_NULL();
 
             result = (int64) f;
@@ -5225,7 +5225,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
             float8 f = DatumGetFloat8(arg);
 
             if (isnan(f) || isinf(f) ||
-                f < PG_INT64_MIN || f > PG_INT64_MAX)
+                f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                 PG_RETURN_NULL();
 
             result = (int64) f;
@@ -5238,7 +5238,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
                 numeric_float8_no_overflow, arg));
 
             if (isnan(f) || isinf(f) ||
-                f < PG_INT64_MIN || f > PG_INT64_MAX)
+                f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                 PG_RETURN_NULL();
 
             result = (int64) f;
@@ -5246,7 +5246,6 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
         else if (type == CSTRINGOID || type == TEXTOID)
         {
             char *endptr;
-
             if (type == CSTRINGOID)
                 string = DatumGetCString(arg);
             else
@@ -5270,7 +5269,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
                  * return null.
                  */
                 if (!is_valid || isnan(f) || isinf(f) ||
-                    f < PG_INT64_MIN || f > PG_INT64_MAX)
+                    f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                     PG_RETURN_NULL();
 
                 result = (int64) f;
@@ -5302,7 +5301,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
             float f = agtv_value->val.float_value;
 
             if (isnan(f) || isinf(f) ||
-                f < PG_INT64_MIN || f > PG_INT64_MAX)
+                f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                 PG_RETURN_NULL();
 
             result = (int64) f;
@@ -5316,7 +5315,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
                 numeric_float8_no_overflow, num));
 
             if (isnan(f) || isinf(f) ||
-                f < PG_INT64_MIN || f > PG_INT64_MAX)
+                f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                 PG_RETURN_NULL();
 
             result = (int64) f;
@@ -5346,7 +5345,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
                  * return null.
                  */
                 if (!is_valid || isnan(f) || isinf(f) ||
-                    f < PG_INT64_MIN || f > PG_INT64_MAX)
+                    f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                     PG_RETURN_NULL();
 
                 result = (int64) f;
