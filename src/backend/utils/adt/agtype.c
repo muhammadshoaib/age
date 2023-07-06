@@ -5245,8 +5245,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
         }
         else if (type == CSTRINGOID || type == TEXTOID)
         {
-            char* endptr;
-            
+            char *endptr;
             if (type == CSTRINGOID)
                 string = DatumGetCString(arg);
             else
@@ -5254,7 +5253,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
 
             /* convert it if it is a regular integer string */
             result = strtoi64(string, &endptr, 10);
-            
+
             /*
              * If it isn't an integer string, try converting it as a float
              * string.
@@ -5323,7 +5322,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
         }
         else if (agtv_value->type == AGTV_STRING)
         {
-            char *endptr; 
+            char *endptr;
             /* we need a null terminated cstring */
             string = strndup(agtv_value->val.string.val,
                              agtv_value->val.string.len);
