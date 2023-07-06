@@ -503,7 +503,7 @@ static void convert_cypher_to_subquery(RangeTblEntry *rte, ParseState *pstate)
     if (extra_node == NULL)
     {
         extra_node = llast(stmt);
-        list_delete_ptr(stmt, extra_node);
+        stmt = list_delete_ptr(stmt, extra_node);
     }
     else
     {
@@ -513,7 +513,7 @@ static void convert_cypher_to_subquery(RangeTblEntry *rte, ParseState *pstate)
                 (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
                  errmsg("too many extra_nodes passed from parser")));
 
-        list_delete_ptr(stmt, temp);
+        stmt = list_delete_ptr(stmt, temp);
     }
 
     cancel_errpos_ecb(&ecb_state);

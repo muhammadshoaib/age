@@ -248,7 +248,7 @@ HeapTuple insert_entity_tuple_cid(ResultRelInfo *resultRelInfo,
     }
 
     // Insert the tuple normally
-    estate->es_result_relations = resultRelInfo;
+    estate->es_result_relations = &resultRelInfo;
     table_tuple_insert(resultRelInfo->ri_RelationDesc, elemTupleSlot,
                 GetCurrentCommandId(true), 0, NULL);
 
