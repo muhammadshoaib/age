@@ -1,0 +1,54 @@
+id,tld,iso2,iso3,name,emoji,__id__,emojiU,native,region,capital,currency,latitude,longitude,subregion,phone_code,numeric_code,currency_symbol
+2,.ax,AX,ALA,Aland Islands,🇦🇽,2,U+1F1E6 U+1F1FD,Åland,Europe,Mariehamn,EUR,60.116667,19.9,Northern Europe,+358-18,248,€
+3,.al,AL,ALB,Albania,🇦🇱,3,U+1F1E6 U+1F1F1,Shqipëria,Europe,Tirana,ALL,41.0,20.0,Southern Europe,355,8,Lek
+6,.ad,AD,AND,Andorra,🇦🇩,6,U+1F1E6 U+1F1E9,Andorra,Europe,Andorra la Vella,EUR,42.5,1.5,Southern Europe,376,20,€
+15,.at,AT,AUT,Austria,🇦🇹,15,U+1F1E6 U+1F1F9,Österreich,Europe,Vienna,EUR,47.33333333,13.33333333,Western Europe,43,40,€
+21,.by,BY,BLR,Belarus,🇧🇾,21,U+1F1E7 U+1F1FE,Белару́сь,Europe,Minsk,BYN,53.0,28.0,Eastern Europe,375,112,Br
+22,.be,BE,BEL,Belgium,🇧🇪,22,U+1F1E7 U+1F1EA,België,Europe,Brussels,EUR,50.83333333,4.0,Western Europe,32,56,€
+28,.ba,BA,BIH,Bosnia and Herzegovina,🇧🇦,28,U+1F1E7 U+1F1E6,Bosna i Hercegovina,Europe,Sarajevo,BAM,44.0,18.0,Southern Europe,387,70,KM
+34,.bg,BG,BGR,Bulgaria,🇧🇬,34,U+1F1E7 U+1F1EC,България,Europe,Sofia,BGN,43.0,25.0,Eastern Europe,359,100,Лв.
+55,.hr,HR,HRV,Croatia,🇭🇷,55,U+1F1ED U+1F1F7,Hrvatska,Europe,Zagreb,HRK,45.16666666,15.5,Southern Europe,385,191,kn
+57,.cy,CY,CYP,Cyprus,🇨🇾,57,U+1F1E8 U+1F1FE,Κύπρος,Europe,Nicosia,EUR,35.0,33.0,Southern Europe,357,196,€
+58,.cz,CZ,CZE,Czech Republic,🇨🇿,58,U+1F1E8 U+1F1FF,Česká republika,Europe,Prague,CZK,49.75,15.5,Eastern Europe,420,203,Kč
+59,.dk,DK,DNK,Denmark,🇩🇰,59,U+1F1E9 U+1F1F0,Danmark,Europe,Copenhagen,DKK,56.0,10.0,Northern Europe,45,208,Kr.
+69,.ee,EE,EST,Estonia,🇪🇪,69,U+1F1EA U+1F1EA,Eesti,Europe,Tallinn,EUR,59.0,26.0,Northern Europe,372,233,€
+72,.fo,FO,FRO,Faroe Islands,🇫🇴,72,U+1F1EB U+1F1F4,Føroyar,Europe,Torshavn,DKK,62.0,-7.0,Northern Europe,298,234,Kr.
+74,.fi,FI,FIN,Finland,🇫🇮,74,U+1F1EB U+1F1EE,Suomi,Europe,Helsinki,EUR,64.0,26.0,Northern Europe,358,246,€
+75,.fr,FR,FRA,France,🇫🇷,75,U+1F1EB U+1F1F7,France,Europe,Paris,EUR,46.0,2.0,Western Europe,33,250,€
+82,.de,DE,DEU,Germany,🇩🇪,82,U+1F1E9 U+1F1EA,Deutschland,Europe,Berlin,EUR,51.0,9.0,Western Europe,49,276,€
+84,.gi,GI,GIB,Gibraltar,🇬🇮,84,U+1F1EC U+1F1EE,Gibraltar,Europe,Gibraltar,GIP,36.13333333,-5.35,Southern Europe,350,292,£
+85,.gr,GR,GRC,Greece,🇬🇷,85,U+1F1EC U+1F1F7,Ελλάδα,Europe,Athens,EUR,39.0,22.0,Southern Europe,30,300,€
+91,.gg,GG,GGY,Guernsey and Alderney,🇬🇬,91,U+1F1EC U+1F1EC,Guernsey,Europe,St Peter Port,GBP,49.46666666,-2.58333333,Northern Europe,+44-1481,831,£
+99,.hu,HU,HUN,Hungary,🇭🇺,99,U+1F1ED U+1F1FA,Magyarország,Europe,Budapest,HUF,47.0,20.0,Eastern Europe,36,348,Ft
+100,.is,IS,ISL,Iceland,🇮🇸,100,U+1F1EE U+1F1F8,Ísland,Europe,Reykjavik,ISK,65.0,-18.0,Northern Europe,354,352,kr
+105,.ie,IE,IRL,Ireland,🇮🇪,105,U+1F1EE U+1F1EA,Éire,Europe,Dublin,EUR,53.0,-8.0,Northern Europe,353,372,€
+107,.it,IT,ITA,Italy,🇮🇹,107,U+1F1EE U+1F1F9,Italia,Europe,Rome,EUR,42.83333333,12.83333333,Southern Europe,39,380,€
+110,.je,JE,JEY,Jersey,🇯🇪,110,U+1F1EF U+1F1EA,Jersey,Europe,Saint Helier,GBP,49.25,-2.16666666,Northern Europe,+44-1534,832,£
+248,.xk,XK,XKX,Kosovo,🇽🇰,248,U+1F1FD U+1F1F0,Republika e Kosovës,Europe,Pristina,EUR,42.5612909,20.3403035,Eastern Europe,383,926,€
+120,.lv,LV,LVA,Latvia,🇱🇻,120,U+1F1F1 U+1F1FB,Latvija,Europe,Riga,EUR,57.0,25.0,Northern Europe,371,428,€
+125,.li,LI,LIE,Liechtenstein,🇱🇮,125,U+1F1F1 U+1F1EE,Liechtenstein,Europe,Vaduz,CHF,47.26666666,9.53333333,Western Europe,423,438,CHf
+126,.lt,LT,LTU,Lithuania,🇱🇹,126,U+1F1F1 U+1F1F9,Lietuva,Europe,Vilnius,EUR,56.0,24.0,Northern Europe,370,440,€
+127,.lu,LU,LUX,Luxembourg,🇱🇺,127,U+1F1F1 U+1F1FA,Luxembourg,Europe,Luxembourg,EUR,49.75,6.16666666,Western Europe,352,442,€
+129,.mk,MK,MKD,Macedonia,🇲🇰,129,U+1F1F2 U+1F1F0,Северна Македонија,Europe,Skopje,MKD,41.83333333,22.0,Southern Europe,389,807,ден
+135,.mt,MT,MLT,Malta,🇲🇹,135,U+1F1F2 U+1F1F9,Malta,Europe,Valletta,EUR,35.83333333,14.58333333,Southern Europe,356,470,€
+136,.im,IM,IMN,Man (Isle of),🇮🇲,136,U+1F1EE U+1F1F2,Isle of Man,Europe,Douglas Isle of Man,GBP,54.25,-4.5,Northern Europe,+44-1624,833,£
+144,.md,MD,MDA,Moldova,🇲🇩,144,U+1F1F2 U+1F1E9,Moldova,Europe,Chisinau,MDL,47.0,29.0,Eastern Europe,373,498,L
+145,.mc,MC,MCO,Monaco,🇲🇨,145,U+1F1F2 U+1F1E8,Monaco,Europe,Monaco,EUR,43.73333333,7.4,Western Europe,377,492,€
+147,.me,ME,MNE,Montenegro,🇲🇪,147,U+1F1F2 U+1F1EA,Црна Гора,Europe,Podgorica,EUR,42.5,19.3,Southern Europe,382,499,€
+156,.nl,NL,NLD,Netherlands,🇳🇱,156,U+1F1F3 U+1F1F1,Nederland,Europe,Amsterdam,EUR,52.5,5.75,Western Europe,31,528,€
+165,.no,NO,NOR,Norway,🇳🇴,165,U+1F1F3 U+1F1F4,Norge,Europe,Oslo,NOK,62.0,10.0,Northern Europe,47,578,kr
+176,.pl,PL,POL,Poland,🇵🇱,176,U+1F1F5 U+1F1F1,Polska,Europe,Warsaw,PLN,52.0,20.0,Eastern Europe,48,616,zł
+177,.pt,PT,PRT,Portugal,🇵🇹,177,U+1F1F5 U+1F1F9,Portugal,Europe,Lisbon,EUR,39.5,-8.0,Southern Europe,351,620,€
+181,.ro,RO,ROU,Romania,🇷🇴,181,U+1F1F7 U+1F1F4,România,Europe,Bucharest,RON,46.0,25.0,Eastern Europe,40,642,lei
+182,.ru,RU,RUS,Russia,🇷🇺,182,U+1F1F7 U+1F1FA,Россия,Europe,Moscow,RUB,60.0,100.0,Eastern Europe,7,643,₽
+192,.sm,SM,SMR,San Marino,🇸🇲,192,U+1F1F8 U+1F1F2,San Marino,Europe,San Marino,EUR,43.76666666,12.41666666,Southern Europe,378,674,€
+196,.rs,RS,SRB,Serbia,🇷🇸,196,U+1F1F7 U+1F1F8,Србија,Europe,Belgrade,RSD,44.0,21.0,Southern Europe,381,688,din
+200,.sk,SK,SVK,Slovakia,🇸🇰,200,U+1F1F8 U+1F1F0,Slovensko,Europe,Bratislava,EUR,48.66666666,19.5,Eastern Europe,421,703,€
+201,.si,SI,SVN,Slovenia,🇸🇮,201,U+1F1F8 U+1F1EE,Slovenija,Europe,Ljubljana,EUR,46.11666666,14.81666666,Southern Europe,386,705,€
+207,.es,ES,ESP,Spain,🇪🇸,207,U+1F1EA U+1F1F8,España,Europe,Madrid,EUR,40.0,-4.0,Southern Europe,34,724,€
+211,.sj,SJ,SJM,Svalbard And Jan Mayen Islands,🇸🇯,211,U+1F1F8 U+1F1EF,Svalbard og Jan Mayen,Europe,Longyearbyen,NOK,78.0,20.0,Northern Europe,47,744,kr
+213,.se,SE,SWE,Sweden,🇸🇪,213,U+1F1F8 U+1F1EA,Sverige,Europe,Stockholm,SEK,62.0,15.0,Northern Europe,46,752,kr
+214,.ch,CH,CHE,Switzerland,🇨🇭,214,U+1F1E8 U+1F1ED,Schweiz,Europe,Bern,CHF,47.0,8.0,Western Europe,41,756,CHf
+230,.ua,UA,UKR,Ukraine,🇺🇦,230,U+1F1FA U+1F1E6,Україна,Europe,Kiev,UAH,49.0,32.0,Eastern Europe,380,804,₴
+232,.uk,GB,GBR,United Kingdom,🇬🇧,232,U+1F1EC U+1F1E7,United Kingdom,Europe,London,GBP,54.0,-2.0,Northern Europe,44,826,£
+238,.va,VA,VAT,Vatican City State (Holy See),🇻🇦,238,U+1F1FB U+1F1E6,Vaticano,Europe,Vatican City,EUR,41.9,12.45,Southern Europe,379,336,€

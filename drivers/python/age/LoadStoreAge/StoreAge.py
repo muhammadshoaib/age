@@ -15,92 +15,40 @@
 
 import age, csv, json, os
 
+def get_label_id(graphid):
+    ENTRY_ID_BITS = 32 + 16
+    tmp = graphid >> ENTRY_ID_BITS
+    return tmp
 
 def load_labels_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
-    def load_labels_into_csv():
-        # storing the data into csv and meta data into json
-        # storing data
+    
+    def load_labels_into_csv() -> None:
         data_file = each_vertex_label[0] + '.csv'
         with open(os.path.join(data_dir_path, data_file), 'w') as file:
             writer = csv.writer(file)
-            writer.writerow(['graphid']+ list((vertices[0][1]).keys()))
+            writer.writerow(list((vertices[0][0]).keys()))
             for each_vertex in vertices:
-                writer.writerow([each_vertex[0]] + list((each_vertex[1]).values()))
+                writer.writerow(list(each_vertex[0].values()))
         file.close()
-        # storing metadata
-        stmt = '''SELECT id FROM ag_catalog.ag_label WHERE relation = '%s."%s"'::regclass;''' % (GRAPH_NAME, each_vertex_label[0])
-
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(stmt)
-                rows = cursor.fetchall()
-            except Exception as ex:
-                pass
-                conn.rollback()
-        label_id = rows[0][0]
-
-        # store this label_id in json
-        meta_data_file = 'meta_' + each_vertex_label[0] + '.json'
-        json_object = json.dumps({
-            "label_id" : label_id,
-        }, indent=4)
-        with open(os.path.join(meta_data_dir_path, meta_data_file), 'w') as file:
-            file.write(json_object)
-        file.close()
-
-
-
-    def load_labels_into_json():
+ 
+    def load_labels_into_json() -> None:
         json_list = []
         for each_vertex in vertices:
-            json_dict = {}
-            json_dict['graphid'] = each_vertex[0]
-            json_dict['properties'] = each_vertex[1]
+            json_dict = each_vertex[0]
             json_list.append(json_dict)
         json_object = json.dumps(json_list, indent=4)
         data_file = each_vertex_label[0] + '.json'
         with open(os.path.join(data_dir_path, data_file), 'w') as file:
             file.write(json_object)
-
-        file.close()
-
-        # storing metadata
-        stmt = '''SELECT id FROM ag_catalog.ag_label WHERE relation = '%s."%s"'::regclass;''' % (GRAPH_NAME, each_vertex_label[0])
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(stmt)
-                rows = cursor.fetchall()
-            except Exception as ex:
-                pass
-                conn.rollback()
-        label_id = rows[0][0]
-
-        # store this label_id in json
-        meta_data_file = 'meta_' + each_vertex_label[0] + '.json'
-        json_object = json.dumps({
-            "label_id" : label_id,
-        }, indent=4)
-        with open(os.path.join(meta_data_dir_path, meta_data_file), 'w') as file:
-            file.write(json_object)
         file.close()
 
     age.setUpAge(conn, GRAPH_NAME)
-    # path construction
     data_dir = 'data'
-    meta_data_dir = 'meta_data'
-    # creating directories for storing data and metadata
     try:
         data_dir_path = os.path.join(dir_path, data_dir)
         os.mkdir(data_dir_path)
     except Exception as ex:
         print(type(ex), ex)
-
-    try:
-        meta_data_dir_path = os.path.join(dir_path, meta_data_dir)
-        os.mkdir(meta_data_dir_path)
-    except Exception as ex:
-        print(type(ex), ex)
-
 
     with conn.cursor() as cursor:
         try:
@@ -115,115 +63,87 @@ def load_labels_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
             ''', (GRAPH_NAME,))
             vertex_labels = cursor.fetchall()
         except Exception as ex: 
-            conn.rollback()
-
+            print(type(ex), ex)
 
     for each_vertex_label in vertex_labels:
-        # TODO
-        stmt = 'SELECT id, properties FROM %s."%s"' % (GRAPH_NAME, each_vertex_label[0])
+        stmt = '''SELECT properties FROM 
+                    %s."%s"''' % (GRAPH_NAME, each_vertex_label[0])
         with conn.cursor() as cursor:
             try:
                 cursor.execute(stmt)
                 vertices = cursor.fetchall()
             except Exception as ex:
-                conn.rollback()
+                print(type(ex), ex)
         var = any(isinstance(i,dict) for j in vertices 
-                  for i in j[1].values())
+                  for i in j[0].values())
         load_labels_into_json() if var else load_labels_into_csv()
+
 
 def load_edges_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
 
-    def load_edges_into_csv():
-        # storing the data into csv and meta data into json
-        # storing data
-        data_file = each_edge_label[0] + '.csv'
-        with open(os.path.join(data_dir_path, data_file), 'w') as file:
-            writer = csv.writer(file)
-            writer.writerow(['graphid']+ ['start_graphid'] + ['end_graphid'] + list((edges[0][3]).keys()))
-            for each_edge in edges:
-                writer.writerow([each_edge[0]] + [each_edge[1]] + [each_edge[2]] + list((each_edge[3]).values()))
-        file.close()
-
-
-        # storing metadata
-        stmt = '''SELECT id FROM ag_catalog.ag_label WHERE relation = '%s."%s"'::regclass;''' % (GRAPH_NAME, each_edge_label[0])
-
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(stmt)
-                rows = cursor.fetchall()
-            except Exception as ex:
-                pass
-                conn.rollback()
-        label_id = rows[0][0]
-
-        # store this label_id in json
-        meta_data_file = 'meta_' + each_edge_label[0] + '.json'
-        json_object = json.dumps({
-            "label_id" : label_id,
-        }, indent=4)
-        with open(os.path.join(meta_data_dir_path, meta_data_file), 'w') as file:
-            file.write(json_object)
-        file.close()
-
-
-
-
-    def load_edges_into_json():
-        # storing the data and metadata into json
-        # storing data
-        json_list = []
+    def load_edges_into_csv() -> None:
+        records_lst = []
+        properties_keys = edges[0][2].keys()
         for each_edge in edges:
-            json_dict = {}
-            json_dict['graphid'] = each_edge[0]
-            json_dict['start_graphid'] = each_edge[1]
-            json_dict['end_graphid'] = each_edge[2]
-            json_dict['properties'] = each_edge[3]
-            json_list.append(json_dict)
-        json_object = json.dumps(json_list, indent=4)
-        data_file = each_edge_label[0] + '.json'
-        with open(os.path.join(data_dir_path, data_file), 'w') as file:
-            file.write(json_object)
+            start_id = get_label_id(int(each_edge[0]))
+            end_id = get_label_id(int(each_edge[1]))
+            start_index = vertices_labels_ids.index(start_id)
+            end_index = vertices_labels_ids.index(end_id)
+            start_vertex_type = vertices_labels_names[start_index]
+            end_vertex_type = vertices_labels_names[end_index]
+            start_id = vertices[start_index][each_edge[0]]
+            end_id = vertices[end_index][each_edge[1]]
+            properties_values = each_edge[2].values()
+            records_lst.append([start_id, start_vertex_type.replace('"', ''), 
+                                end_id, 
+                                end_vertex_type.replace('"', '')] 
+                                + 
+                                list(properties_values))
+        
+        file_path = each_edge_label[0] + '.csv'
 
+        with open(os.path.join(data_dir_path, file_path), 'w') as file:
+            writer = csv.writer(file)
+            writer.writerow(['start_id', 'start_vertex_type', 
+                            'end_id', 
+                            'end_vertex_type'] 
+                            + 
+                            list(properties_keys))
+            writer.writerows(records_lst)
         file.close()
 
-        # storing metadata
-        stmt = '''SELECT id FROM ag_catalog.ag_label WHERE relation = '%s."%s"'::regclass;''' % (GRAPH_NAME, each_edge_label[0])
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(stmt)
-                rows = cursor.fetchall()
-            except Exception as ex:
-                pass
-                conn.rollback()
-        label_id = rows[0][0]
-
-        # store this label_id in json
-        meta_data_file = 'meta_' + each_edge_label[0] + '.json'
-        json_object = json.dumps({
-            "label_id" : label_id,
-        }, indent=4)
-        with open(os.path.join(meta_data_dir_path, meta_data_file), 'w') as file:
-            file.write(json_object)
+    def load_edges_into_json() -> None:
+        records_lst = []
+        for each_edge in edges:
+            start_id = get_label_id(int(each_edge[0]))
+            end_id = get_label_id(int(each_edge[1]))
+            start_index = vertices_labels_ids.index(start_id)
+            end_index = vertices_labels_ids.index(end_id)
+            start_vertex_type = vertices_labels_names[start_index]
+            end_vertex_type = vertices_labels_names[end_index]
+            start_id = vertices[start_index][each_edge[0]]
+            end_id = vertices[end_index][each_edge[1]]
+            json_dict = {
+                "start_id" : start_id,
+                "start_vertex_type" : start_vertex_type.replace('\"', ''),
+                "end_id" : end_id,
+                "end_vertex_type" : end_vertex_type.replace('\"', ''),
+                "properties" : each_edge[2]
+            }
+            records_lst.append(json_dict)
+        file_path = each_edge_label[0] + '.json'
+        json_object = json.dumps(records_lst, indent=4)
+        with open(os.path.join(data_dir_path, file_path), 'w') as file:
+            file.write(json_object)    
         file.close()
-
 
     age.setUpAge(conn, GRAPH_NAME)
-    # path construction
     data_dir = 'data'
-    meta_data_dir = 'meta_data'
-    # creating directories for storing data and metadata
     try:
         data_dir_path = os.path.join(dir_path, data_dir)
         os.mkdir(data_dir_path)
     except Exception as ex:
-        pass
-
-    try:
-        meta_data_dir_path = os.path.join(dir_path, meta_data_dir)
-        os.mkdir(meta_data_dir_path)
-    except Exception as ex:
-        pass
+        print(type(ex), ex)
 
     with conn.cursor() as cursor:
         try:
@@ -236,19 +156,72 @@ def load_edges_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
                 JOIN pg_namespace cn ON cn.oid = c.relnamespace
                 WHERE p.relname = '_ag_label_edge' and pn.nspname = %s;  
             ''', (GRAPH_NAME,))
+            
             edge_labels = cursor.fetchall()
         except Exception as ex: 
+            print(type(ex), ex)
             conn.rollback()
 
+    stmt = '''SELECT graph FROM ag_label 
+                WHERE relation = '%s._ag_label_vertex'::regclass;
+                    ''' % (GRAPH_NAME,)
+    with conn.cursor() as cursor:
+        try:
+            cursor.execute(stmt)
+            GRAPH_OID = cursor.fetchall()[0][0]
+        except Exception as ex:
+            print(type(ex), ex)
+
     for each_edge_label in edge_labels:
-        # TODO
-        stmt = 'SELECT * FROM %s."%s"' % (GRAPH_NAME, each_edge_label[0])
+        stmt = '''SELECT start_id, end_id, properties 
+                    FROM %s."%s"''' % (GRAPH_NAME, each_edge_label[0])
         with conn.cursor() as cursor:
             try:
                 cursor.execute(stmt)
                 edges = cursor.fetchall()
             except Exception as ex:
+                print(type(ex), ex)
                 conn.rollback()
+        vertices_labels_ids, vertices_labels_names = [], []
+        for each_edge in edges:
+            start_label_id = get_label_id(int(each_edge[0]))
+            end_label_id = get_label_id(int(each_edge[1]))
+            if start_label_id not in vertices_labels_ids:
+                stmt = '''SELECT split_part((SELECT relation FROM ag_label 
+                            WHERE graph=%s AND id=%s)::regclass::TEXT, '.', 2);
+                                ''' % (GRAPH_OID, start_label_id)
+                with conn.cursor() as cursor:
+                    try:
+                        cursor.execute(stmt)
+                        vertices_labels_ids.append(start_label_id)
+                        vertices_labels_names.append(cursor.fetchall()[0][0])
+                    except Exception as ex:
+                        print(type(ex), ex)
+            
+            if end_label_id not in vertices_labels_ids:
+                stmt = '''SELECT split_part((SELECT relation FROM ag_label 
+                            WHERE graph=%s AND id=%s)::regclass::TEXT, '.', 2);
+                                ''' % (GRAPH_OID, end_label_id)
+                with conn.cursor() as cursor:
+                    try:
+                        cursor.execute(stmt)
+                        vertices_labels_ids.append(end_label_id)
+                        vertices_labels_names.append(cursor.fetchall()[0][0])
+                    except Exception as ex:
+                        print(type(ex), ex)
+        vertices = []
+        for label in vertices_labels_names:
+            vertices_dict = {}
+            stmt = '''SELECT id, properties -> 'id' 
+                        FROM %s.%s''' % (GRAPH_NAME, label)
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute(stmt)
+                    ver = cursor.fetchall()
+                except Exception as ex:
+                    print(type(ex), ex)
+            vertices_dict = dict(ver)
+            vertices.append(vertices_dict)
         var = any(isinstance(i,dict) for j in edges 
-                  for i in j[3].values())
+                  for i in j[2].values())
         load_edges_into_json() if var else load_edges_into_csv()
