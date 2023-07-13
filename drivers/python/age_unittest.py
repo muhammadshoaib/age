@@ -3,7 +3,8 @@ from age.models import *
 import unittest
 import decimal
 import networkx as nx
-from age_networkx import *
+# from age_networkx import *
+from networkx_to_age import *
 
 DSN = "host=172.17.0.2 port=5432 dbname=postgres user=postgres password=agens"
 ORIGINAL_GRAPH = "original_graph"
@@ -52,10 +53,10 @@ class TestNetworkxToAGE(unittest.TestCase):
                 if markG[i]==0 and markH[j]==0:
                     property_G = g_nodes[i][0].properties
                     property_G['label'] = g_nodes[i][0].label
-                    property_G.pop('id')
+                    property_G.pop('__id__')
 
-                    property_H = h_nodes[i][0].properties
-                    property_H['label'] = h_nodes[i][0].label
+                    property_H = h_nodes[j][0].properties
+                    property_H['label'] = h_nodes[j][0].label
 
                     if property_G == property_H:
                         markG[i] = 1
@@ -76,12 +77,11 @@ class TestNetworkxToAGE(unittest.TestCase):
                 if markG[i]==0 and markH[j]==0:
                     property_G = g_edges[i][0].properties
                     property_G['label'] = g_edges[i][0].label
-                    property_G.pop('start_id')
-                    property_G.pop('end_id')
+                    # property_G.pop('start_id')
+                    # property_G.pop('end_id')
 
-                    property_H = h_edges[i][0].properties
-                    property_H['label'] = h_edges[i][0].label
-
+                    property_H = h_edges[j][0].properties
+                    property_H['label'] = h_edges[j][0].label
                     if property_G == property_H:
                         markG[i] = 1
                         markH[j] = 1
@@ -125,7 +125,7 @@ class TestNetworkxToAGE(unittest.TestCase):
         G.add_edge('2', '3', label='e2', properties={'property' : 'node'} )
 
         # Convert Apache AGE to NetworkX 
-        networkxToAge(self.ag1.connection, G, ORIGINAL_GRAPH)
+        networkx_to_age(self.ag1.connection, G, ORIGINAL_GRAPH)
 
         self.assertTrue(self.compare_age(self.ag1, self.ag2))
 
@@ -139,7 +139,7 @@ class TestNetworkxToAGE(unittest.TestCase):
         
 
         # Convert Apache AGE to NetworkX 
-        networkxToAge(self.ag1.connection, G, ORIGINAL_GRAPH)
+        networkx_to_age(self.ag1.connection, G, ORIGINAL_GRAPH)
 
         self.assertTrue(self.compare_age(self.ag1, self.ag2))
 
@@ -163,7 +163,7 @@ class TestNetworkxToAGE(unittest.TestCase):
             properties={'name': 'n3'})
 
         # Convert Apache AGE to NetworkX 
-        networkxToAge(self.ag1.connection, G, ORIGINAL_GRAPH)
+        networkx_to_age(self.ag1.connection, G, ORIGINAL_GRAPH)
 
         self.assertTrue(self.compare_age(self.ag1, self.ag2))
 
