@@ -224,11 +224,13 @@ def addAllNodesIntoNetworkx(connection: psycopg2.connect, graphName: str, G: nx.
         for label in node_label_list:
             with connection.cursor() as cursor:
                 cursor.execute("""
-                SELECT * FROM %s."%s";
+                SELECT id, CAST(properties AS VARCHAR) 
+                FROM %s."%s";
                 """ % (graphName, label))
                 rows = cursor.fetchall()
                 for row in rows:
-                    G.add_node(row[0], label=label, properties=row[1])
+                    G.add_node(int(row[0]), label=label,
+                               properties=json.loads(row[1]))
     except Exception as e:
         print(e)
 
@@ -239,10 +241,13 @@ def addAllEdgesIntoNetworkx(connection: psycopg2.connect, graphName: str, G: nx.
         edge_label_list = get_elabel(connection, graphName)
         for label in edge_label_list:
             with connection.cursor() as cursor:
-                cursor.execute("""SELECT * FROM %s."%s";""" %
-                               (graphName, label))
+                cursor.execute("""
+                               SELECT start_id, end_id, CAST(properties AS VARCHAR) 
+                               FROM %s."%s";
+                               """ % (graphName, label))
                 rows = cursor.fetchall()
                 for row in rows:
-                    G.add_edge(row[1], row[2], label=label, properties=row[3])
+                    G.add_edge(int(row[0]), int(
+                        row[1]), label=label, properties=json.loads(row[2]))
     except Exception as e:
         print(e)
