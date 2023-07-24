@@ -141,10 +141,8 @@ static Expr *transform_cypher_edge(cypher_parsestate *cpstate,
 static Expr *transform_cypher_node(cypher_parsestate *cpstate,
                                    cypher_node *node, List **target_list,
                                    bool output_node, bool valid_label);
-static Node *make_vertex_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi,
-                              char *label);
-static Node *make_edge_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi,
-                            char *label);
+static Node *make_vertex_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi);
+static Node *make_edge_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi);
 static Node *make_qual(cypher_parsestate *cpstate,
                            transform_entity *entity, char *name);
 static TargetEntry *
@@ -4327,7 +4325,7 @@ static Expr *transform_cypher_edge(cypher_parsestate *cpstate,
 
     if (valid_label)
     {
-        expr = (Expr *)make_edge_expr(cpstate, pnsi, rel->label);
+        expr = (Expr *)make_edge_expr(cpstate, pnsi);
     }
     else
     {
@@ -4480,7 +4478,7 @@ static Expr *transform_cypher_node(cypher_parsestate *cpstate,
 
     if (valid_label)
     {
-        expr = (Expr *)make_vertex_expr(cpstate, pnsi, node->label);
+        expr = (Expr *)make_vertex_expr(cpstate, pnsi);
     }
     else
     {
@@ -4494,8 +4492,7 @@ static Expr *transform_cypher_node(cypher_parsestate *cpstate,
     return expr;
 }
 
-static Node *make_edge_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi,
-                            char *label)
+static Node *make_edge_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi)
 {
     ParseState *pstate = (ParseState *)cpstate;
     Oid label_name_func_oid;
@@ -4541,8 +4538,7 @@ static Node *make_edge_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi
 
     return (Node *)func_expr;
 }
-static Node *make_vertex_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi,
-                              char *label)
+static Node *make_vertex_expr(cypher_parsestate *cpstate, ParseNamespaceItem *pnsi)
 {
     ParseState *pstate = (ParseState *)cpstate;
     Oid label_name_func_oid;
