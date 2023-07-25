@@ -1393,8 +1393,8 @@ static List *transform_cypher_delete_item_list(cypher_parsestate *cpstate,
     {
         Node *expr = lfirst(lc);
         ColumnRef *col;
-	String *val;
-	Integer *pos;
+        String *val;
+        Integer *pos;
         int resno;
 
         cypher_delete_item *item = make_ag_node(cypher_delete_item);
