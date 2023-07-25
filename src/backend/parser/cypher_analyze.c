@@ -760,7 +760,7 @@ static Query *analyze_cypher_and_coerce(List *stmt, RangeTblFunction *rtfunc,
     Assert(rtindex == 1); // rte is the only RangeTblEntry in pstate
 
     addNSItemToQuery(pstate, pnsi, true, true, true);
-    query->targetList = expandNSItemAttrs(pstate, pnsi, 0, -1);
+    query->targetList = expandNSItemAttrs(pstate, pnsi,0, true, -1);
 
     markTargetListOrigins(pstate, query->targetList);
 
