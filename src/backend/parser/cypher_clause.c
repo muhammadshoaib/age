@@ -1427,7 +1427,7 @@ static List *transform_cypher_delete_item_list(cypher_parsestate *cpstate,
             ereport(ERROR,
                     (errcode(ERRCODE_INVALID_COLUMN_REFERENCE),
                      errmsg("undefined reference to variable %s in DELETE clause",
-                            val->sval.str),
+                            val->sval),
                      parser_errposition(pstate, col->location)));
         }
 
