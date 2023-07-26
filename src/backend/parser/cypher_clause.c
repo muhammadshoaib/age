@@ -1334,7 +1334,15 @@ static Query *transform_cypher_unwind(cypher_parsestate *cpstate,
         pnsi = transform_prev_cypher_clause(cpstate, clause->prev, true);
         rtindex = list_length(pstate->p_rtable);
         Assert(rtindex == 1); // rte is the first RangeTblEntry in pstate
-        query->targetList = expandNSItemAttrs(pstate, pnsi, 0,true, -1);
+
+        if (rtindex != 1)
+        {
+            ereport(ERROR,
+                    (errcode(ERRCODE_DATATYPE_MISMATCH),
+                     errmsg("invalid value for rtindex")));
+        }
+
+        query->targetList = expandNSItemAttrs(pstate, pnsi, 0, true, -1);
     }
 
     target_syntax_loc = exprLocation((const Node *) self->target);
@@ -2312,13 +2320,20 @@ static Query *transform_cypher_clause_with_where(cypher_parsestate *cpstate,
         Assert(pnsi != NULL);
         rtindex = list_length(pstate->p_rtable);
         Assert(rtindex == 1); // rte is the only RangeTblEntry in pstate
+        if (rtindex != 1)
+        {
+            ereport(ERROR,
+                    (errcode(ERRCODE_DATATYPE_MISMATCH),
+                     errmsg("invalid value for rtindex")));
+        }
 
         /*
          * add all the target entries in pnsi to the current target list to pass
          * all the variables that are introduced in the previous clause to the
          * next clause
          */
-        query->targetList = expandNSItemAttrs(pstate, pnsi,0, true, -1);
+
+        query->targetList = expandNSItemAttrs(pstate, pnsi, 0, true, -1);
 
         markTargetListOrigins(pstate, query->targetList);
 
@@ -2586,6 +2601,12 @@ static Query *transform_cypher_match_pattern(cypher_parsestate *cpstate,
             rte = pnsi->p_rte;
             rtindex = list_length(pstate->p_rtable);
             Assert(rtindex == 1); // rte is the first RangeTblEntry in pstate
+            if (rtindex != 1)
+            {
+                ereport(ERROR,
+                        (errcode(ERRCODE_DATATYPE_MISMATCH),
+                         errmsg("invalid value for rtindex")));
+            }
 
             /*
              * add all the target entries in rte to the current target list to pass
@@ -2593,7 +2614,8 @@ static Query *transform_cypher_match_pattern(cypher_parsestate *cpstate,
              * next clause
              */
             pnsi = get_namespace_item(pstate, rte);
-            query->targetList = expandNSItemAttrs(pstate, pnsi, 0,true, -1);
+
+            query->targetList = expandNSItemAttrs(pstate, pnsi, 0, true, -1);
         }
 
         transform_match_pattern(cpstate, query, self->pattern, where);
@@ -6776,10 +6798,17 @@ static void handle_prev_clause(cypher_parsestate *cpstate, Query *query,
     if (first_rte)
     {
         Assert(rtindex == 1);
+        if (rtindex != 1)
+        {
+            ereport(ERROR,
+                    (errcode(ERRCODE_DATATYPE_MISMATCH),
+                     errmsg("invalid value for rtindex")));
+        }
     }
 
     // add all the rte's attributes to the current queries targetlist
-    query->targetList = expandNSItemAttrs(pstate, pnsi, 0,true, -1);
+    query->targetList = expandNSItemAttrs(pstate, pnsi, 0, true, -1);
+
 }
 
 ParseNamespaceItem *find_pnsi(cypher_parsestate *cpstate, char *varname)

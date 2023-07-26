@@ -42,7 +42,6 @@
 #include "parser/parse_relation.h"
 #include "utils/builtins.h"
 #include "utils/float.h"
-
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
 
@@ -211,7 +210,7 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
 {
     ParseState *pstate = (ParseState *)cpstate;
     ParseCallbackState pcbstate;
-    
+
     Datum d = (Datum)0;
     bool is_null = false;
     Const *c;
@@ -224,9 +223,13 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
         break;
     case T_Float:
         {
-            char *n = ac->val.sval.sval;
+	    char *n = ac->val.sval.sval;
+
             char *endptr;
             int64 i;
+            errno = 0;
+
+            i = strtoi64(ac->val.fval.fval, &endptr, 10);
 
             if (errno == 0 && *endptr == '\0')
             {
@@ -247,13 +250,13 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
         d = boolean_to_agtype(boolVal(&ac->val));
         break;
     default:
-         if (ac->isnull) {
+        if (ac->isnull) {
 	    is_null = true;
 	} else {
 	    ereport(ERROR,
 		  (errmsg_internal("unrecognized node type: %d", nodeTag(&ac->val))));
 	    return NULL;
-	    }
+	}
     }
     cancel_parser_errposition_callback(&pcbstate);
 

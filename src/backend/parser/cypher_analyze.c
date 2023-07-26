@@ -756,11 +756,19 @@ static Query *analyze_cypher_and_coerce(List *stmt, RangeTblFunction *rtfunc,
 
     pnsi = addRangeTableEntryForSubquery(pstate, subquery, makeAlias("_", NIL),
                                         lateral, true);
+
     rtindex = list_length(pstate->p_rtable);
     Assert(rtindex == 1); // rte is the only RangeTblEntry in pstate
+    if (rtindex !=1 )
+    {
+        ereport(ERROR,
+                (errcode(ERRCODE_DATATYPE_MISMATCH),
+                 errmsg("invalid value for rtindex")));
+    }
+
 
     addNSItemToQuery(pstate, pnsi, true, true, true);
-    query->targetList = expandNSItemAttrs(pstate, pnsi,0, true, -1);
+    query->targetList = expandNSItemAttrs(pstate, pnsi, 0, true, -1);
 
     markTargetListOrigins(pstate, query->targetList);
 
