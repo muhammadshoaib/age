@@ -54,7 +54,7 @@
 #include "utils/builtins.h"
 #include "utils/float.h"
 #include "utils/fmgroids.h"
-#include "utils/int8.h"
+
 #include "utils/lsyscache.h"
 #include "utils/rel.h"
 #include "utils/snapmgr.h"
@@ -959,7 +959,7 @@ static void agtype_in_scalar(void *pstate, char *token,
     case AGTYPE_TOKEN_INTEGER:
         Assert(token != NULL);
         v.type = AGTV_INTEGER;
-        scanint8(token, false, &v.val.int_value);
+        v.val.int_value = pg_strtoint64(token);
         break;
     case AGTYPE_TOKEN_FLOAT:
         Assert(token != NULL);
@@ -5491,27 +5491,11 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
             else
                 string = text_to_cstring(DatumGetTextPP(arg));
 
-            /* convert it if it is a regular integer string */
-            is_valid = scanint8(string, true, &result);
-            /*
-             * If it isn't an integer string, try converting it as a float
-             * string.
-             */
+            result = float8in_internal_null(string, NULL, "double precision",
+                                            string, &is_valid);
             if (!is_valid)
             {
-                float f;
-
-                f = float8in_internal_null(string, NULL, "double precision",
-                                           string, &is_valid);
-                /*
-                 * If the conversions failed or it's a special float value,
-                 * return null.
-                 */
-                if (!is_valid || isnan(f) || isinf(f) ||
-                    f < PG_INT64_MIN || f > PG_INT64_MAX)
-                    PG_RETURN_NULL();
-
-                result = (int64) f;
+                PG_RETURN_NULL();
             }
         }
         else
@@ -5561,16 +5545,18 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
         }
         else if (agtv_value->type == AGTV_STRING)
         {
+            char *endptr;
             /* we need a null terminated cstring */
             string = strndup(agtv_value->val.string.val,
                              agtv_value->val.string.len);
             /* convert it if it is a regular integer string */
-            is_valid = scanint8(string, true, &result);
+            result = strtoi64(string, &endptr, 10);
+
             /*
              * If it isn't an integer string, try converting it as a float
              * string.
              */
-            if (!is_valid)
+            if (*endptr != '\0')
             {
                 float f;
 
@@ -5582,7 +5568,7 @@ Datum age_tointeger(PG_FUNCTION_ARGS)
                  * return null.
                  */
                 if (!is_valid || isnan(f) || isinf(f) ||
-                    f < PG_INT64_MIN || f > PG_INT64_MAX)
+                    f < PG_INT64_MIN || f > (double)PG_INT64_MAX)
                     PG_RETURN_NULL();
 
                 result = (int64) f;
