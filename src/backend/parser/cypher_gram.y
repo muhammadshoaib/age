@@ -2146,7 +2146,7 @@ static Node *make_function_expr(List *func_name, List *exprs, int location)
         char *name;
 
         /* get the name of the function */
-        name = ((String*)linitial(func_name))->sval;
+        name = ((String*)linitial(func_name))->sval.str;
 
         /*
          * Check for openCypher functions that are directly mapped to PG
