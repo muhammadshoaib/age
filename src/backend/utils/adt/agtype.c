@@ -54,7 +54,6 @@
 #include "utils/builtins.h"
 #include "utils/float.h"
 #include "utils/fmgroids.h"
-#include "utils/int8.h"
 #include "utils/lsyscache.h"
 #include "utils/rel.h"
 #include "utils/snapmgr.h"
