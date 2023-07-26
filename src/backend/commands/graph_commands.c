@@ -198,7 +198,7 @@ Datum drop_graph(PG_FUNCTION_ARGS)
 static void drop_schema_for_graph(char *graph_name_str, const bool cascade)
 {
     DropStmt *drop_stmt;
-    String *schema_name;
+    Value *schema_name;
     List *label_id_seq_name;
     DropBehavior behavior;
 

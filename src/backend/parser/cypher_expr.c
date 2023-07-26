@@ -42,6 +42,7 @@
 #include "parser/parse_relation.h"
 #include "utils/builtins.h"
 #include "utils/float.h"
+#include "utils/int8.h"
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
 
@@ -210,27 +211,23 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
 {
     ParseState *pstate = (ParseState *)cpstate;
     ParseCallbackState pcbstate;
-
+    Value *v = &ac->val;
     Datum d = (Datum)0;
     bool is_null = false;
     Const *c;
 
     setup_parser_errposition_callback(&pcbstate, pstate, ac->location);
-    switch (nodeTag(&ac->val))
+    switch (nodeTag(v))
     {
     case T_Integer:
-        d = integer_to_agtype((int64)intVal(&ac->val));
+        d = integer_to_agtype((int64)intVal(v));
         break;
     case T_Float:
         {
-	    char *n = ac->val.sval.sval;
-            char *endptr;
+            char *n = strVal(v);
             int64 i;
-            errno = 0;
 
-            i = strtoi64(ac->val.fval.fval, &endptr, 10);
-
-            if (errno == 0 && *endptr == '\0')
+            if (scanint8(n, true, &i))
             {
                 d = integer_to_agtype(i);
             }
@@ -243,19 +240,15 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
         }
         break;
     case T_String:
-        d = string_to_agtype(strVal(&ac->val));
+        d = string_to_agtype(strVal(v));
         break;
-    case T_Boolean:
-        d = boolean_to_agtype(boolVal(&ac->val));
+    case T_Null:
+        is_null = true;
         break;
     default:
-        if (ac->isnull) {
-	    is_null = true;
-	} else {
-	    ereport(ERROR,
-		  (errmsg_internal("unrecognized node type: %d", nodeTag(&ac->val))));
-	    return NULL;
-	}
+        ereport(ERROR,
+                (errmsg_internal("unrecognized node type: %d", nodeTag(v))));
+        return NULL;
     }
     cancel_parser_errposition_callback(&pcbstate);
 
@@ -872,7 +865,7 @@ static Node *transform_A_Indirection(cypher_parsestate *cpstate,
             if (!indices->lidx)
             {
                 A_Const *n = makeNode(A_Const);
-                n->isnull = true;
+                n->val.type = T_Null;
                 n->location = -1;
                 node = transform_cypher_expr_recurse(cpstate, (Node *)n);
             }
@@ -886,7 +879,7 @@ static Node *transform_A_Indirection(cypher_parsestate *cpstate,
             if (!indices->uidx)
             {
                 A_Const *n = makeNode(A_Const);
-                n->isnull = true;
+                n->val.type = T_Null;
                 n->location = -1;
                 node = transform_cypher_expr_recurse(cpstate, (Node *)n);
             }
@@ -1099,7 +1092,7 @@ static Node *transform_FuncCall(cypher_parsestate *cpstate, FuncCall *fn)
     if (list_length(fn->funcname) == 1)
     {
         /* get the name, size, and the ag name allocated */
-        char *name = ((String*)linitial(fn->funcname))->sval;
+        char *name = ((Value*)linitial(fn->funcname))->val.str;
         int pnlen = strlen(name);
         char *ag_name = palloc(pnlen + 5);
         int i;
@@ -1293,7 +1286,7 @@ static Node *transform_CaseExpr(cypher_parsestate *cpstate, CaseExpr
     {
         A_Const    *n = makeNode(A_Const);
 
-        n->isnull = true;
+        n->val.type = T_Null;
         n->location = -1;
         defresult = (Node *) n;
     }
