@@ -2007,14 +2007,14 @@ static Node *do_negate(Node *n, int location)
         // report the constant's location as that of the '-' sign
         c->location = location;
 
-        if (c->val.type == T_Integer)
+        if (c->val.ival.type == T_Integer)
         {
-            c->val.val.ival = -c->val.val.ival;
+            c->val.ival.ival = -c->val.ival.ival;
             return n;
         }
-        else if (c->val.type == T_Float)
+        else if (c->val.fval.type == T_Float)
         {
-            do_negate_float(&c->val);
+            do_negate_float(&c->val.fval);
             return n;
         }
     }
@@ -2024,12 +2024,14 @@ static Node *do_negate(Node *n, int location)
 
 static void do_negate_float(Float *v)
 {
-    Assert(IsA(v, Float));
+    char *oldval = v->fval;
 
-    if (v->val.str[0] == '-')
-        v->val.str = v->val.str + 1; // just strip the '-'
+    if (*oldval == '+')
+        oldval++;
+    if(*oldval == '-')
+        v->fval = oldval + 1; // just strip the '-'
     else
-        v->val.str = psprintf("-%s", v->val.str);
+        v->fval = psprintf("-%s", oldval);
 }
 
 /*
@@ -2063,11 +2065,10 @@ static Node *append_indirection(Node *expr, Node *selector)
 
 static Node *make_int_const(int i, int location)
 {
-    A_Const *n;
 
-    n = makeNode(A_Const);
-    n->val.type = T_Integer;
-    n->val.val.ival = i;
+    A_Const	*n = makeNode(A_Const);
+    n->val.ival.type = T_Integer;
+    n->val.ival.ival = i;
     n->location = location;
 
     return (Node *)n;
@@ -2075,11 +2076,10 @@ static Node *make_int_const(int i, int location)
 
 static Node *make_float_const(char *s, int location)
 {
-    A_Const *n;
+    A_Const *n = makeNode(A_Const);
 
-    n = makeNode(A_Const);
-    n->val.type = T_Float;
-    n->val.val.str = s;
+    n->val.fval.type = T_Float;
+    n->val.fval.fval = s;
     n->location = location;
 
     return (Node *)n;
@@ -2087,11 +2087,10 @@ static Node *make_float_const(char *s, int location)
 
 static Node *make_string_const(char *s, int location)
 {
-    A_Const *n;
+    A_Const *n = makeNode(A_Const);
 
-    n = makeNode(A_Const);
-    n->val.type = T_String;
-    n->val.val.str = s;
+    n->val.sval.type = T_String;
+    n->val.sval.sval = s;
     n->location = location;
 
     return (Node *)n;
@@ -2110,10 +2109,9 @@ static Node *make_bool_const(bool b, int location)
 
 static Node *make_null_const(int location)
 {
-    A_Const *n;
+    A_Const *n = makeNode(A_Const);
 
-    n = makeNode(A_Const);
-    n->val.type = T_Null;
+    n->isnull = true;
     n->location = location;
 
     return (Node *)n;
@@ -2262,7 +2260,7 @@ static bool is_A_Expr_a_comparison_operation(A_Expr *a)
     Assert(v->type == T_String);
 
     /* get the string value */
-    opr_name = v->val.str;
+    opr_name = v->sval;
 
     /* verify it is a comparison operation */
     if (strcmp(opr_name, "<") == 0)
