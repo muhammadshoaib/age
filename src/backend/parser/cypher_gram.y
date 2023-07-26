@@ -200,7 +200,7 @@ static Node *make_not_expr(Node *expr, int location);
 
 // arithmetic operators
 static Node *do_negate(Node *n, int location);
-static void do_negate_float(Value *v);
+static void do_negate_float(Float *v);
 
 // indirection
 static Node *append_indirection(Node *expr, Node *selector);
@@ -349,8 +349,7 @@ call_stmt:
                 FuncCall *fc = (FuncCall*)$4;
                 ColumnRef *cr = (ColumnRef*)$2;
                 List *fields = cr->fields;
-                Value *string = linitial(fields);
-
+                String *string = linitial(fields);
                 /*
                  * A function can only be qualified with a single schema. So, we
                  * check to see that the function isn't already qualified. There
@@ -396,7 +395,7 @@ call_stmt:
                 FuncCall *fc = (FuncCall*)$4;
                 ColumnRef *cr = (ColumnRef*)$2;
                 List *fields = cr->fields;
-                Value *string = linitial(fields);
+                String *string = linitial(fields);
 
                 /*
                  * A function can only be qualified with a single schema. So, we
@@ -584,7 +583,7 @@ cypher_varlen_opt:
                 A_Const    *lidx = (A_Const *) n->lidx;
                 A_Const    *uidx = (A_Const *) n->uidx;
 
-                if (lidx->val.val.ival > uidx->val.val.ival)
+                if (lidx->val.ival.ival > uidx->val.ival.ival)
                     ereport(ERROR, (errcode(ERRCODE_SYNTAX_ERROR),
                                     errmsg("invalid range"),
                                     ag_scanner_errposition(@2, scanner)));
@@ -1466,7 +1465,7 @@ expr:
             {
                 ColumnRef *cr = (ColumnRef*)$3;
                 List *fields = cr->fields;
-                Value *string = linitial(fields);
+                String *string = linitial(fields);
 
                 $$ = append_indirection($1, (Node*)string);
             }
@@ -1481,7 +1480,7 @@ expr:
                 FuncCall *fc = (FuncCall*)$3;
                 ColumnRef *cr = (ColumnRef*)$1;
                 List *fields = cr->fields;
-                Value *string = linitial(fields);
+                String *string = linitial(fields);
 
                 /*
                  * A function can only be qualified with a single schema. So, we
@@ -1505,7 +1504,7 @@ expr:
             {
                 ColumnRef *cr = (ColumnRef*)$3;
                 List *fields = cr->fields;
-                Value *string = linitial(fields);
+                String *string = linitial(fields);
 
                 $$ = append_indirection($1, (Node*)string);
             }
@@ -2023,7 +2022,7 @@ static Node *do_negate(Node *n, int location)
     return (Node *)makeSimpleA_Expr(AEXPR_OP, "-", NULL, n, location);
 }
 
-static void do_negate_float(Value *v)
+static void do_negate_float(Float *v)
 {
     Assert(IsA(v, Float));
 
@@ -2149,7 +2148,7 @@ static Node *make_function_expr(List *func_name, List *exprs, int location)
         char *name;
 
         /* get the name of the function */
-        name = ((Value*)linitial(func_name))->val.str;
+        name = ((String*)linitial(func_name))->sval.str;
 
         /*
          * Check for openCypher functions that are directly mapped to PG
@@ -2247,7 +2246,7 @@ static Node *make_set_op(SetOperation op, bool all_or_distinct, List *larg,
 /* check if A_Expr is a comparison expression */
 static bool is_A_Expr_a_comparison_operation(A_Expr *a)
 {
-    Value *v = NULL;
+    String *v = NULL;
     char *opr_name = NULL;
 
     /* we don't support qualified comparison operators */
