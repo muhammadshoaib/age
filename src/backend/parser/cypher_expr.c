@@ -224,7 +224,6 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
     case T_Float:
         {
 	    char *n = ac->val.sval.sval;
-
             char *endptr;
             int64 i;
             errno = 0;
