@@ -2067,7 +2067,6 @@ static Node *make_int_const(int i, int location)
 {
 
     A_Const	*n = makeNode(A_Const);
-
     n->val.ival.type = T_Integer;
     n->val.ival.ival = i;
     n->location = location;
