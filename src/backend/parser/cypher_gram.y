@@ -350,6 +350,8 @@ call_stmt:
                 ColumnRef *cr = (ColumnRef*)$2;
                 List *fields = cr->fields;
                 String *string = linitial(fields);
+
+                String *string = linitial(fields);
                 /*
                  * A function can only be qualified with a single schema. So, we
                  * check to see that the function isn't already qualified. There
@@ -2024,14 +2026,12 @@ static Node *do_negate(Node *n, int location)
 
 static void do_negate_float(Float *v)
 {
-    char *oldval = v->fval;
+    Assert(IsA(v, Float));
 
-    if (*oldval == '+')
-        oldval++;
-    if(*oldval == '-')
-        v->fval = oldval + 1; // just strip the '-'
+    if (oldval == '-')
+        v->fval = v->fval + 1; // just strip the '-'
     else
-        v->fval = psprintf("-%s", oldval);
+        v->fval = psprintf("-%s", v->fval);
 }
 
 /*
@@ -2065,8 +2065,9 @@ static Node *append_indirection(Node *expr, Node *selector)
 
 static Node *make_int_const(int i, int location)
 {
+    A_Const *n;
 
-    A_Const	*n = makeNode(A_Const);
+    n = makeNode(A_Const);
     n->val.ival.type = T_Integer;
     n->val.ival.ival = i;
     n->location = location;
@@ -2101,7 +2102,7 @@ static Node *make_bool_const(bool b, int location)
     cypher_bool_const *n;
 
     n = make_ag_node(cypher_bool_const);
-    n->boolean = b;
+    n->val.boolval.boolval = b;
     n->location = location;
 
     return (Node *)n;
@@ -2111,6 +2112,8 @@ static Node *make_null_const(int location)
 {
     A_Const *n = makeNode(A_Const);
 
+    n = makeNode(A_Const);
+    n->isnull = true;
     n->isnull = true;
     n->location = location;
 
