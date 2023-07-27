@@ -351,7 +351,6 @@ call_stmt:
                 List *fields = cr->fields;
                 String *string = linitial(fields);
 
-                String *string = linitial(fields);
                 /*
                  * A function can only be qualified with a single schema. So, we
                  * check to see that the function isn't already qualified. There
@@ -2026,12 +2025,14 @@ static Node *do_negate(Node *n, int location)
 
 static void do_negate_float(Float *v)
 {
-    Assert(IsA(v, Float));
+    char *oldval = v->fval;
 
-    if (oldval == '-')
-        v->fval = v->fval + 1; // just strip the '-'
-    else
-        v->fval = psprintf("-%s", v->fval);
+	if (*oldval == '+')
+		oldval++;
+	if (*oldval == '-')
+		v->fval = oldval+1;	/* just strip the '-' */
+	else
+		v->fval = psprintf("-%s", oldval);
 }
 
 /*
@@ -2065,14 +2066,13 @@ static Node *append_indirection(Node *expr, Node *selector)
 
 static Node *make_int_const(int i, int location)
 {
-    A_Const *n;
+    A_Const *n = makeNode(A_Const);
 
-    n = makeNode(A_Const);
     n->val.ival.type = T_Integer;
     n->val.ival.ival = i;
     n->location = location;
 
-    return (Node *)n;
+    return (Node *) n;
 }
 
 static Node *make_float_const(char *s, int location)
@@ -2083,7 +2083,7 @@ static Node *make_float_const(char *s, int location)
     n->val.fval.fval = s;
     n->location = location;
 
-    return (Node *)n;
+    return (Node *) n;
 }
 
 static Node *make_string_const(char *s, int location)
@@ -2094,30 +2094,28 @@ static Node *make_string_const(char *s, int location)
     n->val.sval.sval = s;
     n->location = location;
 
-    return (Node *)n;
+    return (Node *) n;
 }
 
 static Node *make_bool_const(bool b, int location)
 {
-    cypher_bool_const *n;
+    A_Const *n = makeNode(A_Const);
 
-    n = make_ag_node(cypher_bool_const);
+    n->val.boolval.type = T_Boolean;
     n->val.boolval.boolval = b;
     n->location = location;
 
-    return (Node *)n;
+    return (Node *) n;
 }
 
 static Node *make_null_const(int location)
 {
     A_Const *n = makeNode(A_Const);
-
-    n = makeNode(A_Const);
-    n->isnull = true;
+    
     n->isnull = true;
     n->location = location;
 
-    return (Node *)n;
+    return (Node *) n;
 }
 
 /*
@@ -2149,7 +2147,7 @@ static Node *make_function_expr(List *func_name, List *exprs, int location)
         char *name;
 
         /* get the name of the function */
-        name = ((String*)linitial(func_name))->sval.str;
+        name = ((String*)linitial(func_name))->sval;
 
         /*
          * Check for openCypher functions that are directly mapped to PG
