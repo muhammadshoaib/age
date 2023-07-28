@@ -4854,7 +4854,6 @@ transform_create_cypher_edge(cypher_parsestate *cpstate, List **target_list,
     pnsi = addRangeTableEntryForRelation(&cpstate->pstate, label_relation,
                                         AccessShareLock, NULL, false, false);
   
-    rte = pnsi->p_rte;
     rte_pi = pnsi->p_perminfo;
     rte_pi->requiredPerms = ACL_INSERT;
 
