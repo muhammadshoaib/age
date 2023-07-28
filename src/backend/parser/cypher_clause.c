@@ -1362,7 +1362,7 @@ static Query *transform_cypher_unwind(cypher_parsestate *cpstate,
 
     query->targetList = lappend(query->targetList, te);
     query->rtable = pstate->p_rtable;
-    query->rteperminfos = cpstate->pstate.p_rteperminfos;
+    query->rteperminfos = pstate->p_rteperminfos;
     query->jointree = makeFromExpr(pstate->p_joinlist, NULL);
     query->hasTargetSRFs = pstate->p_hasTargetSRFs;
 
@@ -1504,6 +1504,7 @@ static Query *transform_cypher_set(cypher_parsestate *cpstate,
     query->targetList = lappend(query->targetList, tle);
 
     query->rtable = pstate->p_rtable;
+    query->rteperminfos = pstate->p_rteperminfos;
     query->jointree = makeFromExpr(pstate->p_joinlist, NULL);
 
     return query;
@@ -2094,6 +2095,7 @@ static Query *transform_cypher_return(cypher_parsestate *cpstate,
                                                EXPR_KIND_LIMIT, "LIMIT");
 
     query->rtable = pstate->p_rtable;
+    query->rteperminfos = pstate->p_rteperminfos;
     query->jointree = makeFromExpr(pstate->p_joinlist, NULL);
     query->hasAggs = pstate->p_hasAggs;
 

@@ -78,7 +78,7 @@ ResultRelInfo *create_entity_result_rel_info(EState *estate, char *graph_name,
 
     // initialize the resultRelInfo
     InitResultRelInfo(resultRelInfo, label_relation,
-                      list_length(estate->es_range_table), NULL,
+                      0, NULL,
                       estate->es_instrument);
 
     // open the parse state
