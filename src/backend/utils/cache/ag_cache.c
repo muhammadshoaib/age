@@ -217,7 +217,7 @@ static int name_hash_compare(const void *key1, const void *key2, Size keysize)
     Name name2 = (Name)key2;
 
     // keysize parameter is superfluous here
-    AssertArg(keysize == NAMEDATALEN);
+    Assert(keysize == NAMEDATALEN);
 
     return strncmp(NameStr(*name1), NameStr(*name2), NAMEDATALEN);
 }
@@ -354,7 +354,7 @@ graph_cache_data *search_graph_name_cache(const char *name)
     NameData name_key;
     graph_name_cache_entry *entry;
 
-    AssertArg(name);
+    Assert(name);
 
     initialize_caches();
 
@@ -866,7 +866,7 @@ label_cache_data *search_label_name_graph_cache(const char *name, Oid graph)
     NameData name_key;
     label_name_graph_cache_entry *entry;
 
-    AssertArg(name);
+    Assert(name);
 
     initialize_caches();
 
@@ -947,7 +947,7 @@ label_cache_data *search_label_graph_oid_cache(uint32 graph_oid, int32 id)
 {
     label_graph_oid_cache_entry *entry;
 
-    AssertArg(label_id_is_valid(id));
+    Assert(label_id_is_valid(id));
 
     initialize_caches();
 
@@ -1086,8 +1086,8 @@ label_cache_data *search_label_seq_name_graph_cache(const char *name, Oid graph)
     NameData name_key;
     label_seq_name_graph_cache_entry *entry;
 
-    AssertArg(name);
-    AssertArg(OidIsValid(graph));
+    Assert(name);
+    Assert(OidIsValid(graph));
 
     initialize_caches();
 

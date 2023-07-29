@@ -1305,7 +1305,7 @@ static void ereport_op_str(const char *op, agtype *lhs, agtype *rhs)
     const char *lstr;
     const char *rstr;
 
-    AssertArg(rhs != NULL);
+    Assert(rhs != NULL);
 
     if (lhs == NULL)
     {

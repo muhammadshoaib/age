@@ -169,7 +169,7 @@ static HeapTuple update_entity_tuple(ResultRelInfo *resultRelInfo,
         // Insert index entries for the tuple
         if (resultRelInfo->ri_NumIndices > 0 && update_indexes)
         {
-          ExecInsertIndexTuples(resultRelInfo, elemTupleSlot, estate, false, false, NULL, NIL);
+          ExecInsertIndexTuples(resultRelInfo, elemTupleSlot, estate, false, false, NULL, NIL, false);
         }
 
         ExecCloseIndices(resultRelInfo);
