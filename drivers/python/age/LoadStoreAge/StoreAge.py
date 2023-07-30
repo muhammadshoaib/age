@@ -13,14 +13,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import age, csv, json, os
+import age, csv
+from .utils.utils_store import *
 
-def get_label_id(graphid):
-    ENTRY_ID_BITS = 32 + 16
-    tmp = graphid >> ENTRY_ID_BITS
-    return tmp
-
-def load_labels_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
+def load_labels_into_file(conn, GRAPH_NAME, dir_path) -> None:
     
     def load_labels_into_csv() -> None:
         data_file = each_vertex_label[0] + '.csv'
@@ -43,43 +39,18 @@ def load_labels_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
         file.close()
 
     age.setUpAge(conn, GRAPH_NAME)
-    data_dir = 'data'
-    try:
-        data_dir_path = os.path.join(dir_path, data_dir)
-        os.mkdir(data_dir_path)
-    except Exception as ex:
-        print(type(ex), ex)
+    data_dir_path = setup_data_dir(dir_path)
 
-    with conn.cursor() as cursor:
-        try:
-            cursor.execute('''
-                SELECT c.relname                                                                                       
-                FROM pg_inherits 
-                JOIN pg_class AS c ON (inhrelid=c.oid)
-                JOIN pg_class as p ON (inhparent=p.oid)
-                JOIN pg_namespace pn ON pn.oid = p.relnamespace
-                JOIN pg_namespace cn ON cn.oid = c.relnamespace
-                WHERE p.relname = '_ag_label_vertex' and pn.nspname = %s;  
-            ''', (GRAPH_NAME,))
-            vertex_labels = cursor.fetchall()
-        except Exception as ex: 
-            print(type(ex), ex)
+    vertex_labels = get_all_vertex_labels(conn, GRAPH_NAME)
 
     for each_vertex_label in vertex_labels:
-        stmt = '''SELECT properties FROM 
-                    %s."%s"''' % (GRAPH_NAME, each_vertex_label[0])
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(stmt)
-                vertices = cursor.fetchall()
-            except Exception as ex:
-                print(type(ex), ex)
-        var = any(isinstance(i,dict) for j in vertices 
+        vertices = get_all_vertices(conn, GRAPH_NAME, each_vertex_label[0])
+        var = any(isinstance(i,dict) for j in vertices
                   for i in j[0].values())
         load_labels_into_json() if var else load_labels_into_csv()
 
 
-def load_edges_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
+def load_edges_into_file(conn, GRAPH_NAME, dir_path) -> None:
 
     def load_edges_into_csv() -> None:
         records_lst = []
@@ -138,88 +109,31 @@ def load_edges_into_file(conn, GRAPH_NAME, dir_path: str) -> None:
         file.close()
 
     age.setUpAge(conn, GRAPH_NAME)
-    data_dir = 'data'
-    try:
-        data_dir_path = os.path.join(dir_path, data_dir)
-        os.mkdir(data_dir_path)
-    except Exception as ex:
-        print(type(ex), ex)
+    data_dir_path = setup_data_dir(dir_path)
 
-    with conn.cursor() as cursor:
-        try:
-            cursor.execute('''
-                SELECT c.relname                                                                                       
-                FROM pg_inherits 
-                JOIN pg_class AS c ON (inhrelid=c.oid)
-                JOIN pg_class as p ON (inhparent=p.oid)
-                JOIN pg_namespace pn ON pn.oid = p.relnamespace
-                JOIN pg_namespace cn ON cn.oid = c.relnamespace
-                WHERE p.relname = '_ag_label_edge' and pn.nspname = %s;  
-            ''', (GRAPH_NAME,))
-            
-            edge_labels = cursor.fetchall()
-        except Exception as ex: 
-            print(type(ex), ex)
-            conn.rollback()
+    edge_labels = get_all_edge_labels(conn, GRAPH_NAME)
 
-    stmt = '''SELECT graph FROM ag_label 
-                WHERE relation = '%s._ag_label_vertex'::regclass;
-                    ''' % (GRAPH_NAME,)
-    with conn.cursor() as cursor:
-        try:
-            cursor.execute(stmt)
-            GRAPH_OID = cursor.fetchall()[0][0]
-        except Exception as ex:
-            print(type(ex), ex)
+    GRAPH_OID = get_graph_oid(conn, GRAPH_NAME)
 
     for each_edge_label in edge_labels:
-        stmt = '''SELECT start_id, end_id, properties 
-                    FROM %s."%s"''' % (GRAPH_NAME, each_edge_label[0])
-        with conn.cursor() as cursor:
-            try:
-                cursor.execute(stmt)
-                edges = cursor.fetchall()
-            except Exception as ex:
-                print(type(ex), ex)
-                conn.rollback()
+        edges = get_all_edges(conn, GRAPH_NAME, each_edge_label[0])
         vertices_labels_ids, vertices_labels_names = [], []
+
         for each_edge in edges:
             start_label_id = get_label_id(int(each_edge[0]))
             end_label_id = get_label_id(int(each_edge[1]))
             if start_label_id not in vertices_labels_ids:
-                stmt = '''SELECT split_part((SELECT relation FROM ag_label 
-                            WHERE graph=%s AND id=%s)::regclass::TEXT, '.', 2);
-                                ''' % (GRAPH_OID, start_label_id)
-                with conn.cursor() as cursor:
-                    try:
-                        cursor.execute(stmt)
-                        vertices_labels_ids.append(start_label_id)
-                        vertices_labels_names.append(cursor.fetchall()[0][0])
-                    except Exception as ex:
-                        print(type(ex), ex)
+                store_rel_vertex_data(conn, GRAPH_OID, start_label_id, 
+                                      vertices_labels_ids, vertices_labels_names)
             
             if end_label_id not in vertices_labels_ids:
-                stmt = '''SELECT split_part((SELECT relation FROM ag_label 
-                            WHERE graph=%s AND id=%s)::regclass::TEXT, '.', 2);
-                                ''' % (GRAPH_OID, end_label_id)
-                with conn.cursor() as cursor:
-                    try:
-                        cursor.execute(stmt)
-                        vertices_labels_ids.append(end_label_id)
-                        vertices_labels_names.append(cursor.fetchall()[0][0])
-                    except Exception as ex:
-                        print(type(ex), ex)
+                store_rel_vertex_data(conn, GRAPH_OID, end_label_id, 
+                                      vertices_labels_ids, vertices_labels_names)
         vertices = []
         for label in vertices_labels_names:
             vertices_dict = {}
-            stmt = '''SELECT id, properties -> 'id' 
-                        FROM %s.%s''' % (GRAPH_NAME, label)
-            with conn.cursor() as cursor:
-                try:
-                    cursor.execute(stmt)
-                    ver = cursor.fetchall()
-                except Exception as ex:
-                    print(type(ex), ex)
+            ver = vertices_in_mem(conn, GRAPH_NAME, label)
+
             vertices_dict = dict(ver)
             vertices.append(vertices_dict)
         var = any(isinstance(i,dict) for j in edges 
