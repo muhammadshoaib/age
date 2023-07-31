@@ -22,6 +22,7 @@
  */
 
 #include "postgres.h"
+#include "varatt.h"
 
 #include <math.h>
 
