@@ -145,5 +145,77 @@ class TestAgeToNetworkx(unittest.TestCase):
 
         self.assertTrue(self.compare_networkX(G, H))
 
+    def testAgeToNetowrkX4(self):
+        # Expected Graph
+        G = nx.DiGraph()
+
+        G.add_node('1', 
+            label='l1',
+            properties={'name' : 'n1',
+                        'weight' : '5'})
+        G.add_node('2', 
+            label='l1', 
+            properties={'name': 'n2' ,
+                        'weight' : '4'})
+
+        G.add_edge('1', '2', label='e1', properties={'property' : 'graph'} )
+        
+
+        # AGE Graph
+        self.ag.execCypher("CREATE (:l1 {name: 'n1', weight: '5'})")
+        self.ag.execCypher("CREATE (:l1 {name: 'n2', weight: '4'})")
+        self.ag.execCypher("CREATE (:l1 {name: 'n3', weight: '9'})")
+        
+        self.ag.execCypher("""MATCH (a:l1), (b:l1)
+                            WHERE a.name = 'n1' AND b.name = 'n2'
+                            CREATE (a)-[e:e1 {property:'graph'}]->(b)""")
+        self.ag.execCypher("""MATCH (a:l1), (b:l1)
+                            WHERE a.name = 'n2' AND b.name = 'n3'
+                            CREATE (a)-[e:e2 {property:'node'}]->(b)""")
+        
+
+        query = """SELECT * FROM cypher('%s', $$ MATCH (a:l1)-[r:e1]->(b:l1)
+                WHERE a.name = 'n1' and b.name = 'n2'
+                RETURN a, r, b $$) AS (a agtype, r agtype, b agtype);
+                """ % (TEST_GRAPH_NAME)
+
+        # Convert Apache AGE to NetworkX 
+        H = age_to_networkx(self.ag.connection, TEST_GRAPH_NAME, query=query)
+
+
+        self.assertTrue(self.compare_networkX(G, H))
+
+    def testAgeToNetowrkX5(self):
+        # Expected Graph
+        G = nx.DiGraph()
+
+        G.add_node('1', 
+            label='l1',
+            properties={'name' : 'n1',
+                        'weight' : '5'})        
+
+        # AGE Graph
+        self.ag.execCypher("CREATE (:l1 {name: 'n1', weight: '5'})")
+        self.ag.execCypher("CREATE (:l1 {name: 'n2', weight: '4'})")
+        self.ag.execCypher("CREATE (:l1 {name: 'n3', weight: '9'})")
+        
+        self.ag.execCypher("""MATCH (a:l1), (b:l1)
+                            WHERE a.name = 'n1' AND b.name = 'n2'
+                            CREATE (a)-[e:e1 {property:'graph'}]->(b)""")
+        self.ag.execCypher("""MATCH (a:l1), (b:l1)
+                            WHERE a.name = 'n2' AND b.name = 'n3'
+                            CREATE (a)-[e:e2 {property:'node'}]->(b)""")
+        
+
+        query = """SELECT * FROM cypher('%s', $$ MATCH (a:l1)
+                WHERE a.name = 'n1'
+                RETURN a $$) AS (a agtype);
+                """ % (TEST_GRAPH_NAME)
+
+        # Convert Apache AGE to NetworkX 
+        H = age_to_networkx(self.ag.connection, TEST_GRAPH_NAME, query=query)
+
+        self.assertTrue(self.compare_networkX(G, H))
+
 if __name__=="__main__":
     unittest.main()
