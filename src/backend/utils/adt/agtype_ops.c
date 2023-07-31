@@ -23,7 +23,6 @@
 
 #include "postgres.h"
 #include "varatt.h"
-
 #include <math.h>
 
 #include "catalog/pg_type_d.h"
