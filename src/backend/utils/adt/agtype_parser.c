@@ -36,8 +36,11 @@
 #include "miscadmin.h"
 #include "utils/date.h"
 #include "utils/datetime.h"
+#include "utils/varlena.h"
 
+#include "utils/agtype.h"
 #include "utils/agtype_parser.h"
+
 
 /*
  * The context of the parser is maintained by the recursive descent
@@ -198,7 +201,7 @@ bool is_valid_agtype_number(const char *str, int len)
 agtype_lex_context *make_agtype_lex_context(text *t, bool need_escapes)
 {
     return make_agtype_lex_context_cstring_len(
-        VARDATA_ANY(t), VARSIZE_ANY_EXHDR(t), need_escapes);
+            VARDATA_ANY(t), VARSIZE_ANY_EXHDR(t), need_escapes);
 }
 
 agtype_lex_context *make_agtype_lex_context_cstring_len(char *str, int len,
