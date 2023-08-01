@@ -41,6 +41,7 @@
 #include "parser/parse_oper.h"
 #include "parser/parse_relation.h"
 #include "utils/builtins.h"
+#include "utils/float.h"
 #include "utils/int8.h"
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
@@ -48,6 +49,7 @@
 #include "commands/label_commands.h"
 #include "nodes/cypher_nodes.h"
 #include "parser/cypher_expr.h"
+#include "parser/cypher_item.h"
 #include "parser/cypher_parse_node.h"
 #include "parser/cypher_transform_entity.h"
 #include "utils/ag_func.h"
@@ -92,8 +94,8 @@ static Node *transform_CoalesceExpr(cypher_parsestate *cpstate,
                                     CoalesceExpr *cexpr);
 static Node *transform_SubLink(cypher_parsestate *cpstate, SubLink *sublink);
 static Node *transform_FuncCall(cypher_parsestate *cpstate, FuncCall *fn);
-static Node *transform_WholeRowRef(ParseState *pstate, RangeTblEntry *rte,
-                                   int location);
+static Node *transform_WholeRowRef(ParseState *pstate, ParseNamespaceItem *pnsi,
+                                   int location, int sublevels_up);
 static ArrayExpr *make_agtype_array_expr(List *args);
 
 /* transform a cypher expression */
@@ -147,6 +149,7 @@ static Node *transform_cypher_expr_recurse(cypher_parsestate *cpstate,
             ereport(ERROR, (errmsg_internal("unrecognized A_Expr kind: %d",
                                             a->kind)));
         }
+        break;
     }
     case T_BoolExpr:
         return transform_BoolExpr(cpstate, (BoolExpr *)expr);
@@ -259,15 +262,18 @@ static Node *transform_A_Const(cypher_parsestate *cpstate, A_Const *ac)
  * Private function borrowed from PG's transformWholeRowRef.
  * Construct a whole-row reference to represent the notation "relation.*".
  */
-static Node *transform_WholeRowRef(ParseState *pstate, RangeTblEntry *rte,
-                                   int location)
+static Node *transform_WholeRowRef(ParseState *pstate, ParseNamespaceItem *pnsi,
+                                   int location, int sublevels_up)
 {
     Var *result;
     int vnum;
-    int sublevels_up;
+    RangeTblEntry *rte;
+
+    Assert(pnsi->p_rte != NULL);
+    rte = pnsi->p_rte;
 
     /* Find the RTE's rangetable location */
-    vnum = RTERangeTablePosn(pstate, rte, &sublevels_up);
+    vnum = pnsi->p_rtindex;
 
     /*
      * Build the appropriate referencing node.  Note that if the RTE is a
@@ -283,7 +289,7 @@ static Node *transform_WholeRowRef(ParseState *pstate, RangeTblEntry *rte,
      result->location = location;
 
      /* mark relation as requiring whole-row SELECT access */
-     markVarForSelectPriv(pstate, result, rte);
+     markVarForSelectPriv(pstate, result);
 
      return (Node *)result;
 }
@@ -295,13 +301,13 @@ static Node *transform_WholeRowRef(ParseState *pstate, RangeTblEntry *rte,
 static Node *transform_ColumnRef(cypher_parsestate *cpstate, ColumnRef *cref)
 {
     ParseState *pstate = (ParseState *)cpstate;
-    RangeTblEntry *rte = NULL;
     Node *field1 = NULL;
     Node *field2 = NULL;
     char *colname = NULL;
     char *nspname = NULL;
     char *relname = NULL;
     Node *node = NULL;
+    ParseNamespaceItem *pnsi = NULL;
     int levels_up;
 
     switch (list_length(cref->fields))
@@ -344,11 +350,12 @@ static Node *transform_ColumnRef(cypher_parsestate *cpstate, ColumnRef *cref)
                  * PostQUEL-inspired syntax.  The preferred form now is
                  * "rel.*".
                  */
-                rte = refnameRangeTblEntry(pstate, NULL, colname,
+                pnsi = refnameNamespaceItem(pstate, NULL, colname,
                                            cref->location, &levels_up);
-                if (rte)
+                if (pnsi)
                 {
-                    node = transform_WholeRowRef(pstate, rte, cref->location);
+                    node = transform_WholeRowRef(pstate, pnsi, cref->location,
+                                                 levels_up);
                 }
                 else
                 {
@@ -361,7 +368,8 @@ static Node *transform_ColumnRef(cypher_parsestate *cpstate, ColumnRef *cref)
                 if (node == NULL)
                 {
                     ereport(ERROR, (errcode(ERRCODE_DATA_EXCEPTION),
-                            errmsg("unable to transform whole row for %s", colname),
+                            errmsg("unable to transform whole row for %s",
+                                   colname),
                              parser_errposition(pstate, cref->location)));
                 }
 
@@ -384,9 +392,10 @@ static Node *transform_ColumnRef(cypher_parsestate *cpstate, ColumnRef *cref)
                 }
 
                 /* locate the referenced RTE */
-                rte = refnameRangeTblEntry(pstate, nspname, relname,
+                pnsi = refnameNamespaceItem(pstate, nspname, relname,
                                            cref->location, &levels_up);
-                if (rte == NULL)
+
+                if (pnsi == NULL)
                 {
                     ereport(ERROR,
                             (errcode(ERRCODE_UNDEFINED_COLUMN),
@@ -402,15 +411,17 @@ static Node *transform_ColumnRef(cypher_parsestate *cpstate, ColumnRef *cref)
                  */
                 if (IsA(field2, A_Star))
                 {
-                    node = transform_WholeRowRef(pstate, rte, cref->location);
+                    node = transform_WholeRowRef(pstate, pnsi, cref->location,
+                                                 levels_up);
                     break;
                 }
 
                 Assert(IsA(field2, String));
 
                 /* try to identify as a column of the RTE */
-                node = scanRTEForColumn(pstate, rte, colname, cref->location, 0,
-                                        NULL);
+                node = scanNSItemForColumn(pstate, pnsi, 0, colname,
+                                           cref->location);
+
                 if (node == NULL)
                 {
                     ereport(ERROR,
@@ -619,9 +630,9 @@ static Node *transform_cypher_map(cypher_parsestate *cpstate, cypher_map *cm)
         Const *newkey;
 
         key = lfirst(le);
-        le = lnext(le);
+        le = lnext(cm->keyvals, le);
         val = lfirst(le);
-        le = lnext(le);
+        le = lnext(cm->keyvals, le);
 
         newval = transform_cypher_expr_recurse(cpstate, val);
 
@@ -1043,7 +1054,7 @@ static Node *transform_cypher_typecast(cypher_parsestate *cpstate,
     }
 
     /* make a function call node */
-    fnode = makeFuncCall(fname, list_make1(ctypecast->expr),
+    fnode = makeFuncCall(fname, list_make1(ctypecast->expr), COERCE_SQL_SYNTAX,
                          ctypecast->location);
 
     /* return the transformed function */

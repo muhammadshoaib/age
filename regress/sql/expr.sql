@@ -17,6 +17,7 @@
  * under the License.
  */
 
+SET extra_float_digits = 0;
 LOAD 'age';
 SET search_path TO ag_catalog;
 
@@ -394,7 +395,7 @@ RETURN false XOR false
 $$) AS r(result boolean);
 
 SELECT * FROM cypher('expr', $$
-RETURN false OR 1::bool    
+RETURN false OR 1::bool
 $$) AS (result boolean);
 
 SELECT * FROM cypher('expr', $$
@@ -402,7 +403,7 @@ RETURN false AND NOT 1::bool
 $$) AS (result boolean);
 
 SELECT * FROM cypher('expr', $$
-RETURN NOT 1::bool::int::bool    
+RETURN NOT 1::bool::int::bool
 $$) AS (result boolean);
 
 -- Invalid operands for AND, OR, NOT, XOR
@@ -419,11 +420,11 @@ RETURN false OR 1
 $$) AS r(result boolean);
 
 SELECT * FROM cypher('expr', $$
-RETURN 0 OR true 
+RETURN 0 OR true
 $$) AS r(result boolean);
 
 SELECT * FROM cypher('expr', $$
-RETURN NOT 1    
+RETURN NOT 1
 $$) AS r(result boolean);
 
 SELECT * FROM cypher('expr', $$
@@ -451,7 +452,7 @@ RETURN false XOR 1::numeric
 $$) AS (result agtype);
 
 SELECT * FROM cypher('expr', $$
-RETURN false OR 1::bool::int    
+RETURN false OR 1::bool::int
 $$) AS (result boolean);
 --
 -- Test indirection transform logic for object.property, object["property"],
@@ -1298,6 +1299,39 @@ $$) AS (toFloat agtype);
 SELECT * FROM cypher('expr', $$
     RETURN toFloat()
 $$) AS (toFloat agtype);
+-- toFloatList()
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList([1.3])
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList([1.2, '4.654'])
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList(['1.9432', 8.6222, '9.4111212', 344.22])
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList(['999.2'])
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList([1.20002])
+$$) AS (toFloatList agtype);
+-- should return null
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList(['true'])
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList([null])
+$$) AS (toFloatList agtype);
+-- should fail
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList([failed])
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList("failed")
+$$) AS (toFloatList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toFloatList(555)
+$$) AS (toFloatList agtype);
 -- toInteger()
 SELECT * FROM cypher('expr', $$
     RETURN toInteger(1)
@@ -1328,6 +1362,36 @@ $$) AS (toInteger agtype);
 SELECT * FROM cypher('expr', $$
     RETURN toInteger()
 $$) AS (toInteger agtype);
+-- toIntegerList()
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList([1, 7.8, 9.0, '88'])
+$$) AS (toIntegerList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList([4.2, '123', '8', 8])
+$$) AS (toIntegerList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList(['41', '12', 2])
+$$) AS (toIntegerList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList([1, 2, 3, '10.2'])
+$$) AS (toIntegerList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList([0000])
+$$) AS (toIntegerList agtype);
+-- should return null
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList(["false_", 'asdsad', '123k1kdk1'])
+$$) AS (toIntegerList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList([null, '123false', 'one'])
+$$) AS (toIntegerList agtype);
+-- should fail
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList(123, '123')
+$$) AS (toIntegerList agtype);
+SELECT * FROM cypher('expr', $$
+    RETURN toIntegerList(32[])
+$$) AS (toIntegerList agtype);
 -- length() of a path
 SELECT * FROM cypher('expr', $$
     RETURN length([{id: 0, label: "vertex 0", properties: {}}::vertex, {id: 2, label: "edge 0", end_id: 1, start_id: 0, properties: {}}::edge, {id: 1, label: "vertex 1", properties: {}}::vertex]::path)
@@ -1361,6 +1425,7 @@ SELECT * FROM age_toString(false);
 SELECT * FROM age_toString('a string');
 SELECT * FROM age_toString('a cstring'::cstring);
 SELECT * FROM age_toString('a text string'::text);
+SELECT * FROM age_toString(pg_typeof(3.14));
 -- agtypes
 SELECT * FROM age_toString(agtype_in('3'));
 SELECT * FROM age_toString(agtype_in('3.14'));
@@ -2708,9 +2773,47 @@ SELECT * FROM cypher('list',$$ MATCH p=(n:xyz)-[e]->() SET n.array=[0, 1, 2, 3, 
                                                            90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
                                                            e.array, 100] return n,e $$) as (a agtype, b agtype);
 
+-- pg_typeof
+SELECT * FROM cypher('expr', $$MATCH (u) RETURN toString(pg_catalog.pg_typeof(u.id)) $$) AS (u agtype);
+
+-- issue: 395 aggregate function collect() incorrect container for operation
+SELECT create_graph('graph_395');
+SELECT * FROM cypher('graph_395', $$ CREATE (n:Project {name: 'Project A'}),
+                                            (m:Project {name: 'Project B'}),
+                                            (a:Task {name: 'Task A', size: 10}),
+                                            (b:Task {name: 'Task B', size: 5}),
+                                            (c:Task {name: 'Task C', size: 7}),
+                                            (x:Person {name: 'John', age: 55}),
+                                            (y:Person {name: 'Bob', age: 43}),
+                                            (z:Person {name: 'Alice', age: 33}),
+                                            (n)-[:Has]->(a),
+                                            (n)-[:Has]->(b),
+                                            (m)-[:Has]->(c),
+                                            (a)-[:AssignedTo]->(x),
+                                            (b)-[:AssignedTo]->(y),
+                                            (c)-[:AssignedTo]->(y) $$) as (n agtype);
+
+SELECT * FROM cypher('graph_395', $$ MATCH (p:Project)-[:Has]->(t:Task)-[:AssignedTo]->(u:Person)
+                                     WITH p, t, collect(u) AS users
+                                     WITH p, {tn: t.name, users: users} AS task
+                                     RETURN task $$) AS (p agtype);
+
+SELECT * FROM cypher('graph_395', $$ MATCH (p:Project)-[:Has]->(t:Task)-[:AssignedTo]->(u:Person)
+                                     WITH p, t, collect(u) AS users
+                                     WITH p, {tn: t.name, users: users} AS task
+                                     WITH p, collect(task) AS tasks
+                                     RETURN tasks $$) AS (p agtype);
+
+SELECT * FROM cypher('graph_395', $$ MATCH (p:Project)-[:Has]->(t:Task)-[:AssignedTo]->(u:Person)
+                                     WITH p, t, collect(u) AS users
+                                     WITH p, {tn: t.name, users: users} AS task
+                                     WITH p, collect(task) AS tasks
+                                     WITH {pn: p.name, tasks:tasks} AS project
+                                     RETURN project $$) AS (p agtype);
 --
 -- Cleanup
 --
+SELECT * FROM drop_graph('graph_395', true);
 SELECT * FROM drop_graph('chained', true);
 SELECT * FROM drop_graph('VLE', true);
 SELECT * FROM drop_graph('case_statement', true);

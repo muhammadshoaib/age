@@ -20,23 +20,20 @@
 #include "postgres.h"
 
 #include "access/htup_details.h"
+#include "access/table.h"
 #include "access/xact.h"
 #include "executor/tuptable.h"
 #include "nodes/execnodes.h"
 #include "nodes/extensible.h"
 #include "nodes/nodes.h"
 #include "nodes/plannodes.h"
-#include "parser/parse_relation.h"
-#include "rewrite/rewriteHandler.h"
 #include "utils/rel.h"
-#include "utils/tqual.h"
 
 #include "catalog/ag_label.h"
 #include "executor/cypher_executor.h"
 #include "executor/cypher_utils.h"
 #include "nodes/cypher_nodes.h"
 #include "utils/agtype.h"
-#include "utils/ag_cache.h"
 #include "utils/graphid.h"
 
 static void begin_cypher_merge(CustomScanState *node, EState *estate,
@@ -45,10 +42,10 @@ static TupleTableSlot *exec_cypher_merge(CustomScanState *node);
 static void end_cypher_merge(CustomScanState *node);
 static void rescan_cypher_merge(CustomScanState *node);
 static Datum merge_vertex(cypher_merge_custom_scan_state *css,
-                          cypher_target_node *node, ListCell *next);
+                          cypher_target_node *node, ListCell *next, List* list);
 static void merge_edge(cypher_merge_custom_scan_state *css,
                        cypher_target_node *node, Datum prev_vertex_id,
-                       ListCell *next);
+                       ListCell *next, List *list);
 static void process_simple_merge(CustomScanState *node);
 static bool check_path(cypher_merge_custom_scan_state *css,
                        TupleTableSlot *slot);
@@ -85,7 +82,8 @@ static void begin_cypher_merge(CustomScanState *node, EState *estate,
     ExecAssignExprContext(estate, &node->ss.ps);
 
     ExecInitScanTupleSlot(estate, &node->ss,
-                          ExecGetResultType(node->ss.ps.lefttree));
+                          ExecGetResultType(node->ss.ps.lefttree),
+                          &TTSOpsVirtual);
 
     /*
      * When MERGE is not the last clause in a cypher query. Setup projection
@@ -120,7 +118,7 @@ static void begin_cypher_merge(CustomScanState *node, EState *estate,
         }
 
         // Open relation and acquire a row exclusive lock.
-        rel = heap_open(cypher_node->relid, RowExclusiveLock);
+        rel = table_open(cypher_node->relid, RowExclusiveLock);
 
         // Initialize resultRelInfo for the vertex
         cypher_node->resultRelInfo = makeNode(ResultRelInfo);
@@ -134,7 +132,8 @@ static void begin_cypher_merge(CustomScanState *node, EState *estate,
         // Setup the relation's tuple slot
         cypher_node->elemTupleSlot = ExecInitExtraTupleSlot(
             estate,
-            RelationGetDescr(cypher_node->resultRelInfo->ri_RelationDesc));
+            RelationGetDescr(cypher_node->resultRelInfo->ri_RelationDesc),
+            &TTSOpsHeapTuple);
 
         if (cypher_node->id_expr != NULL)
         {
@@ -209,14 +208,14 @@ static bool check_path(cypher_merge_custom_scan_state *css,
 static void process_path(cypher_merge_custom_scan_state *css)
 {
     cypher_create_path *path = css->path;
-    ListCell *lc = list_head(path->target_nodes);
+    List *list = path->target_nodes;
+    ListCell *lc = list_head(list);
 
     /*
      * Create the first vertex. The create_vertex function will
      * create the rest of the path, if necessary.
      */
-
-    merge_vertex(css, lfirst(lc), lnext(lc));
+    merge_vertex(css, lfirst(lc), lnext(list, lc), list);
 
     /*
      * If this path is a variable, take the list that was accumulated
@@ -277,7 +276,6 @@ static void process_simple_merge(CustomScanState *node)
 
         /* setup the scantuple that the process_path needs */
         econtext->ecxt_scantuple = sss->ss.ss_ScanTupleSlot;
-        econtext->ecxt_scantuple->tts_isempty = false;
 
         process_path(css);
     }
@@ -476,7 +474,6 @@ static TupleTableSlot *exec_cypher_merge(CustomScanState *node)
              */
             ExprContext *econtext = node->ss.ps.ps_ExprContext;
             SubqueryScanState *sss = (SubqueryScanState *)node->ss.ps.lefttree;
-            HeapTuple heap_tuple = NULL;
 
             /*
              * Our child execution node is always a subquery. If not there
@@ -503,8 +500,8 @@ static TupleTableSlot *exec_cypher_merge(CustomScanState *node)
              *  it.
              */
             ExecInitScanTupleSlot(estate, &sss->ss,
-                                  ExecGetResultType(sss->subplan));
-
+                                  ExecGetResultType(sss->subplan),
+                                  &TTSOpsVirtual);
 
             /* setup the scantuple that the process_path needs */
             econtext->ecxt_scantuple = sss->ss.ss_ScanTupleSlot;
@@ -521,15 +518,8 @@ static TupleTableSlot *exec_cypher_merge(CustomScanState *node)
              */
             mark_tts_isnull(econtext->ecxt_scantuple);
 
-            // create the physical heap tuple
-            heap_tuple = heap_form_tuple(
-                                econtext->ecxt_scantuple->tts_tupleDescriptor,
-                                econtext->ecxt_scantuple->tts_values,
-                                econtext->ecxt_scantuple->tts_isnull);
-
-            // store the heap tuple
-            ExecStoreTuple(heap_tuple, econtext->ecxt_scantuple, InvalidBuffer,
-                           false);
+            // store the heap tuble
+            ExecStoreVirtualTuple(econtext->ecxt_scantuple);
 
             /*
              * make the subquery's projection scan slot be the tuple table we
@@ -580,8 +570,8 @@ static void end_cypher_merge(CustomScanState *node)
         ExecCloseIndices(cypher_node->resultRelInfo);
 
         // close the relation itself
-        heap_close(cypher_node->resultRelInfo->ri_RelationDesc,
-                   RowExclusiveLock);
+        table_close(cypher_node->resultRelInfo->ri_RelationDesc,
+                    RowExclusiveLock);
     }
 }
 
@@ -639,7 +629,7 @@ Node *create_cypher_merge_plan_state(CustomScan *cscan)
  * the create_edge function.
  */
 static Datum merge_vertex(cypher_merge_custom_scan_state *css,
-                          cypher_target_node *node, ListCell *next)
+                          cypher_target_node *node, ListCell *next, List *list)
 {
     bool isNull;
     Datum id;
@@ -658,7 +648,7 @@ static Datum merge_vertex(cypher_merge_custom_scan_state *css,
      */
     if (CYPHER_TARGET_NODE_INSERT_ENTITY(node->flags))
     {
-        ResultRelInfo *old_estate_es_result_relation_info = NULL;
+        ResultRelInfo **old_estate_es_result_relations = NULL;
         Datum prop;
 
         /*
@@ -669,9 +659,9 @@ static Datum merge_vertex(cypher_merge_custom_scan_state *css,
          */
 
         /* save the old result relation info */
-        old_estate_es_result_relation_info = estate->es_result_relation_info;
+        old_estate_es_result_relations = estate->es_result_relations;
 
-        estate->es_result_relation_info = resultRelInfo;
+        estate->es_result_relations = &resultRelInfo;
 
         ExecClearTuple(elemTupleSlot);
 
@@ -728,7 +718,7 @@ static Datum merge_vertex(cypher_merge_custom_scan_state *css,
         }
 
         /* restore the old result relation info */
-        estate->es_result_relation_info = old_estate_es_result_relation_info;
+        estate->es_result_relations = old_estate_es_result_relations;
 
         /*
          * When the vertex is used by clauses higher in the execution tree
@@ -850,7 +840,7 @@ static Datum merge_vertex(cypher_merge_custom_scan_state *css,
     /* If the path continues, create the next edge, passing the vertex's id. */
     if (next != NULL)
     {
-        merge_edge(css, lfirst(next), id, lnext(next));
+        merge_edge(css, lfirst(next), id, lnext(list, next), list);
     }
 
     return id;
@@ -861,13 +851,13 @@ static Datum merge_vertex(cypher_merge_custom_scan_state *css,
  */
 static void merge_edge(cypher_merge_custom_scan_state *css,
                        cypher_target_node *node, Datum prev_vertex_id,
-                       ListCell *next)
+                       ListCell *next, List *list)
 {
     bool isNull;
     EState *estate = css->css.ss.ps.state;
     ExprContext *econtext = css->css.ss.ps.ps_ExprContext;
     ResultRelInfo *resultRelInfo = node->resultRelInfo;
-    ResultRelInfo *old_estate_es_result_relation_info = NULL;
+    ResultRelInfo **old_estate_es_result_relations = NULL;
     TupleTableSlot *elemTupleSlot = node->elemTupleSlot;
     Datum id;
     Datum start_id, end_id, next_vertex_id;
@@ -882,7 +872,7 @@ static void merge_edge(cypher_merge_custom_scan_state *css,
      * next vertex's id.
      */
     css->path_values = NIL;
-    next_vertex_id = merge_vertex(css, lfirst(next), lnext(next));
+    next_vertex_id = merge_vertex(css, lfirst(next), lnext(list, next), list);
 
     /*
      * Set the start and end vertex ids
@@ -914,9 +904,9 @@ static void merge_edge(cypher_merge_custom_scan_state *css,
      */
 
     /* save the old result relation info */
-    old_estate_es_result_relation_info = estate->es_result_relation_info;
+    old_estate_es_result_relations = estate->es_result_relations;
 
-    estate->es_result_relation_info = resultRelInfo;
+    estate->es_result_relations = &resultRelInfo;
 
     ExecClearTuple(elemTupleSlot);
 
@@ -942,7 +932,7 @@ static void merge_edge(cypher_merge_custom_scan_state *css,
     insert_entity_tuple(resultRelInfo, elemTupleSlot, estate);
 
     /* restore the old result relation info */
-    estate->es_result_relation_info = old_estate_es_result_relation_info;
+    estate->es_result_relations = old_estate_es_result_relations;
 
     /*
      * When the edge is used by clauses higher in the execution tree
