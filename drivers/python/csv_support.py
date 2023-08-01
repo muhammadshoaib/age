@@ -1,3 +1,18 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import csv
 import json
 import os
@@ -8,6 +23,8 @@ from psycopg2 import extensions as ext
 import age 
 from age.exceptions import *
 from typing import Dict
+import time
+
 
 def storeAgetoCsv(conn: ext.connection, graph_name: str, path: str): 
 
@@ -362,3 +379,16 @@ def storeCsvtoAge(conn: ext.connection, graph_name: str, path: str, with_labels:
         print("Exception:",e)
         raise e
     
+if __name__ == "__main__":
+    conn = psycopg2.connect(host="localhost", 
+                            database="testdb", 
+                            user="safi", 
+                            password="safi")
+    
+    s = time.time()
+    # storeAgetoCsv(conn, "nested", "/Users/safi/Desktop/data/aaa/")
+    storeCsvtoAge(conn, "aaa1", "/Users/safi/Desktop/data/aaa/")
+    e = time.time()
+    print("Time taken:", e-s)
+    conn.commit()
+    conn.close()
