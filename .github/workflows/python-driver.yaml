@@ -57,3 +57,5 @@ jobs:
       run: |
         python test_age_py.py -db "postgres" -u "postgres" -pass "agens"
         python -m unittest -v test_agtypes.py
+        python test_age_to_networkx.py
+        python test_networkx_to_age.py
