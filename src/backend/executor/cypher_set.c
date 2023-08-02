@@ -111,6 +111,7 @@ static HeapTuple update_entity_tuple(ResultRelInfo *resultRelInfo,
     TM_FailureData hufd;
     TM_Result lock_result;
     Buffer buffer;
+    Buffer old_buffer;
     bool update_indexes;
     TM_Result   result;
     CommandId cid = GetCurrentCommandId(true);
@@ -138,12 +139,16 @@ static HeapTuple update_entity_tuple(ResultRelInfo *resultRelInfo,
             ExecConstraints(resultRelInfo, elemTupleSlot, estate);
         }
 
+        old_buffer = buffer;
+
         result = table_tuple_update(resultRelInfo->ri_RelationDesc,
                                     &tuple->t_self, elemTupleSlot,
                                     cid, estate->es_snapshot,
                                     estate->es_crosscheck_snapshot,
                                     true /* wait for commit */ ,
                                     &hufd, &lockmode, &update_indexes);
+
+        buffer = old_buffer;
 
         if (result == TM_SelfModified)
         {
