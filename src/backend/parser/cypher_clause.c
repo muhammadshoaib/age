@@ -337,7 +337,6 @@ static bool isa_special_VLE_case(cypher_path *path);
 
 static ParseNamespaceItem *find_pnsi(cypher_parsestate *cpstate, char *varname);
 
-static void  markRelsAsNulledBy(ParseState *pstate, int n, int jindex);
 /*
  * transform a cypher_clause
  */
@@ -4443,8 +4442,6 @@ static Expr *transform_cypher_edge(cypher_parsestate *cpstate,
     Node *expr = NULL;
     bool refs_var = false;
     ParseNamespaceItem *pnsi = NULL;
-    int jindex;
-
 
     /*
      * If we have an edge name, get any potential variable or column
@@ -4645,10 +4642,6 @@ static Expr *transform_cypher_edge(cypher_parsestate *cpstate,
     pnsi = addRangeTableEntry(pstate, label_range_var, alias,
                              label_range_var->inh, true);
     Assert(pnsi != NULL);
-    if (pstate->parentParseState->p_lateral_active) {
-      jindex = list_length(pstate->p_rtable + 1);
-      markRelsAsNulledBy(pstate, pnsi->p_rtindex, jindex);
-    }
 
     /*
      * relation is visible (r.a in expression works) but attributes in the
@@ -4692,7 +4685,6 @@ static Expr *transform_cypher_node(cypher_parsestate *cpstate,
     cypher_node *cn = NULL;
     bool refs_var = false;
     ParseNamespaceItem *pnsi;
-    int jindex;
 
     /* if we have a node name, get any potential variable references */
     if (node->name != NULL)
@@ -4886,13 +4878,8 @@ static Expr *transform_cypher_node(cypher_parsestate *cpstate,
     pnsi = addRangeTableEntry(pstate, label_range_var, alias,
                              label_range_var->inh, true);
 
-
-
     Assert(pnsi != NULL);
-    if (pstate->parentParseState->p_lateral_active) {
-      jindex = list_length(pstate->p_rtable + 1);
-      markRelsAsNulledBy(pstate, pnsi->p_rtindex, jindex);
-    }
+
     /*
      * relation is visible (r.a in expression works) but attributes in the
      * relation are not visible (a in expression doesn't work)
@@ -6853,42 +6840,3 @@ ParseNamespaceItem *find_pnsi(cypher_parsestate *cpstate, char *varname)
 
     return NULL;
 }
-
- static void
- markRelsAsNulledBy(ParseState *pstate, int n, int jindex)
- {
-     int         varno;
-     ListCell   *lc;
-     varno = n;
-  
-     /* Note: we can't see FromExpr here */
-     /* if (IsA(n, RangeTblRef)) */
-     /* { */
-     /*     varno = ((RangeTblRef *) n)->rtindex; */
-     /* } */
-     /* else if (IsA(n, JoinExpr)) */
-     /* { */
-     /*     JoinExpr   *j = (JoinExpr *) n; */
-  
-     /*     /\* recurse to children *\/ */
-     /*     markRelsAsNulledBy(pstate, j->larg, jindex); */
-     /*     markRelsAsNulledBy(pstate, j->rarg, jindex); */
-     /*     varno = j->rtindex; */
-     /* } */
-     /* else */
-     /* { */
-     /*     elog(ERROR, "unrecognized node type: %d", (int) nodeTag(n)); */
-     /*     varno = 0;              /\* keep compiler quiet *\/ */
-     /* } */
-  
-     /*
-      * Now add jindex to the p_nullingrels set for relation varno.  Since we
-      * maintain the p_nullingrels list lazily, we might need to extend it to
-      * make the varno'th entry exist.
-      */
-     while (list_length(pstate->p_nullingrels) < varno)
-         pstate->p_nullingrels = lappend(pstate->p_nullingrels, NULL);
-     lc = list_nth_cell(pstate->p_nullingrels, varno - 1);
-     lfirst(lc) = bms_add_member((Bitmapset *) lfirst(lc), jindex);
- }
-  
