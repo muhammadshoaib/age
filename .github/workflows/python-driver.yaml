@@ -57,3 +57,5 @@ jobs:
       run: |
         python test_age_py.py -db "postgres" -u "postgres" -pass "agens"
         python -m unittest -v test_agtypes.py
+        python test_LoadAge_py.py -db "postgres" -u "postgres" -pass "agens"
+        python test_StoreAge_py.py -db "postgres" -u "postgres" -pass "agens"
